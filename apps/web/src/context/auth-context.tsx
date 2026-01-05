@@ -92,8 +92,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const register = useCallback(async (data: RegisterRequest) => {
-    await authApi.register(data);
-    return { requiresVerification: true };
+    const result = await authApi.register(data);
+    // If message says "You can now sign in", verification is skipped
+    const requiresVerification = !result.message.includes("You can now sign in");
+    return { requiresVerification };
   }, []);
 
   const logout = useCallback(async () => {

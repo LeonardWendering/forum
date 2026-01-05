@@ -75,12 +75,16 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      await register({
+      const result = await register({
         email: formData.email,
         displayName: formData.displayName,
         password: formData.password
       });
-      router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
+      if (result.requiresVerification) {
+        router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
+      } else {
+        router.push("/login?registered=true");
+      }
     } catch (err) {
       if (err instanceof ApiClientError) {
         setApiError(err.message);

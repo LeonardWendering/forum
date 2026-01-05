@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { Button, FormField, Alert, Card, CardHeader, CardContent, CardFooter } from "@/components/ui";
 import { ApiClientError } from "@/lib/api";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const justRegistered = searchParams.get("registered") === "true";
   const { login, isLoading } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -56,6 +58,9 @@ export default function LoginPage() {
 
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
+          {justRegistered && (
+            <Alert variant="success">Account created successfully! You can now sign in.</Alert>
+          )}
           {error && <Alert variant="error">{error}</Alert>}
 
           <FormField
@@ -114,5 +119,13 @@ export default function LoginPage() {
         </CardFooter>
       </form>
     </Card>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
