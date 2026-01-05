@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "nest build",
-    "render-build": "npm install -g pnpm && cd ../.. && pnpm install && pnpm prisma generate && cd apps/api && pnpm build",
+    "render-build": "npm install -g pnpm && cd ../.. && NODE_ENV=development pnpm install && npx prisma generate && cd apps/api && pnpm build",
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "lint": "eslint \"src/**/*.ts\"",
