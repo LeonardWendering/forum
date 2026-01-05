@@ -1,0 +1,24 @@
+{
+  "name": "forum-monorepo",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "dev": "pnpm run -r --parallel dev",
+    "build": "pnpm run -r build",
+    "lint": "pnpm run -r lint",
+    "test": "pnpm run -r test",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter api start:dev"
+  },
+  "devDependencies": {
+    "@prisma/client": "^5.20.0",
+    "@types/ms": "^0.7.34",
+    "eslint": "^9.9.0",
+    "prettier": "^3.3.2",
+    "prisma": "^5.20.0",
+    "turbo": "^2.1.0",
+    "typescript": "^5.6.2"
+  }
+}

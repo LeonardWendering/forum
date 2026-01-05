@@ -1,0 +1,229 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  MEMBER
+  MODERATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+enum SubcommunityType {
+  PUBLIC
+  INVITE_ONLY
+  PASSWORD_PROTECTED
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  passwordHash    String   @map("password_hash")
+  displayName     String   @map("display_name")
+  role            UserRole @default(MEMBER)
+  status          UserStatus @default(ACTIVE)
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  profile               Profile?
+  verificationTokens    EmailVerificationToken[]
+  passwordResetTokens   PasswordResetToken[]
+  sessions              Session[]
+
+  // Forum relations
+  createdSubcommunities Subcommunity[]
+  memberships           Membership[]
+  threads               Thread[]
+  posts                 Post[]
+  votes                 Vote[]
+  sentMessages          Message[]
+  conversations1        Conversation[] @relation("ConversationUser1")
+  conversations2        Conversation[] @relation("ConversationUser2")
+}
+
+model Profile {
+  userId     String  @id @map("user_id")
+  avatarUrl  String? @map("avatar_url")
+  bio        String?
+  timezone   String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  token     String
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  usedAt    DateTime? @map("used_at")
+
+  @@index([userId])
+  @@unique([userId, token])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  usedAt    DateTime? @map("used_at")
+
+  @@index([userId])
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String   @map("user_id")
+  tokenHash   String   @map("token_hash")
+  userAgent   String?  @map("user_agent")
+  ipAddress   String?  @map("ip_address")
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  revokedAt   DateTime? @map("revoked_at")
+
+  @@index([userId])
+}
+
+// ============================================
+// Forum Models
+// ============================================
+
+model Subcommunity {
+  id          String            @id @default(cuid())
+  name        String            @unique
+  slug        String            @unique
+  description String?
+  type        SubcommunityType  @default(PUBLIC)
+  password    String?           // Hashed, for PASSWORD_PROTECTED type
+  createdById String            @map("created_by_id")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  createdBy   User              @relation(fields: [createdById], references: [id])
+  memberships Membership[]
+  threads     Thread[]
+
+  @@index([createdById])
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  userId         String       @map("user_id")
+  subcommunityId String       @map("subcommunity_id")
+  role           String       @default("member") // member, moderator
+  joinedAt       DateTime     @default(now()) @map("joined_at")
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subcommunity   Subcommunity @relation(fields: [subcommunityId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, subcommunityId])
+  @@index([userId])
+  @@index([subcommunityId])
+}
+
+model Thread {
+  id             String       @id @default(cuid())
+  title          String
+  subcommunityId String       @map("subcommunity_id")
+  authorId       String       @map("author_id")
+  isPinned       Boolean      @default(false) @map("is_pinned")
+  isLocked       Boolean      @default(false) @map("is_locked")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  subcommunity   Subcommunity @relation(fields: [subcommunityId], references: [id], onDelete: Cascade)
+  author         User         @relation(fields: [authorId], references: [id])
+  posts          Post[]
+
+  @@index([subcommunityId])
+  @@index([authorId])
+}
+
+model Post {
+  id        String    @id @default(cuid())
+  content   String
+  threadId  String    @map("thread_id")
+  authorId  String    @map("author_id")
+  parentId  String?   @map("parent_id") // For nested replies
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at") // Soft delete
+
+  thread    Thread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author    User      @relation(fields: [authorId], references: [id])
+  parent    Post?     @relation("PostReplies", fields: [parentId], references: [id])
+  replies   Post[]    @relation("PostReplies")
+  votes     Vote[]
+
+  @@index([threadId])
+  @@index([authorId])
+  @@index([parentId])
+}
+
+model Vote {
+  id        String   @id @default(cuid())
+  postId    String   @map("post_id")
+  userId    String   @map("user_id")
+  value     Int      // 1 = upvote, -1 = downvote
+  createdAt DateTime @default(now()) @map("created_at")
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+// ============================================
+// Messaging Models
+// ============================================
+
+model Conversation {
+  id           String    @id @default(cuid())
+  participant1 String    @map("participant_1")
+  participant2 String    @map("participant_2")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user1        User      @relation("ConversationUser1", fields: [participant1], references: [id])
+  user2        User      @relation("ConversationUser2", fields: [participant2], references: [id])
+  messages     Message[]
+
+  @@unique([participant1, participant2])
+  @@index([participant1])
+  @@index([participant2])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String       @map("conversation_id")
+  senderId       String       @map("sender_id")
+  content        String
+  readAt         DateTime?    @map("read_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id])
+
+  @@index([conversationId])
+  @@index([senderId])
+}

@@ -1,0 +1,39 @@
+import { Module } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
+import { APP_GUARD } from "@nestjs/core";
+import { validateEnv } from "../config/env.validation";
+import { PrismaModule } from "../database/prisma.module";
+import { AuthModule } from "../auth/auth.module";
+import { SubcommunitiesModule } from "../subcommunities/subcommunities.module";
+import { ThreadsModule } from "../threads/threads.module";
+import { PostsModule } from "../posts/posts.module";
+import { MessagesModule } from "../messages/messages.module";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { AppService } from "./app.service";
+import { AppController } from "./app.controller";
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      cache: true,
+      envFilePath: ["apps/api/.env", ".env"],
+      validate: validateEnv
+    }),
+    PrismaModule,
+    AuthModule,
+    SubcommunitiesModule,
+    ThreadsModule,
+    PostsModule,
+    MessagesModule
+  ],
+  controllers: [AppController],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard
+    }
+  ]
+})
+export class AppModule {}
