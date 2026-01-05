@@ -9,14 +9,19 @@ export class MailService {
 
   constructor(private readonly configService: ConfigService) {
     const host = this.configService.get<string>("MAIL_HOST") || this.configService.get<string>("MAILHOG_HOST") || "localhost";
-    const port = this.configService.get<number>("MAIL_PORT") || this.configService.get<number>("MAILHOG_PORT") || 1025;
+    const port = Number(this.configService.get<string>("MAIL_PORT") || this.configService.get<string>("MAILHOG_PORT") || "1025");
     const user = this.configService.get<string>("MAIL_USER");
     const pass = this.configService.get<string>("MAIL_PASS");
+
+    // Use SSL for port 465, STARTTLS for others
+    const secure = port === 465;
 
     const config: nodemailer.TransportOptions = {
       host,
       port,
-      secure: false
+      secure,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000
     } as nodemailer.TransportOptions;
 
     // Add auth if credentials are provided (for Gmail, etc.)
@@ -25,6 +30,7 @@ export class MailService {
     }
 
     this.transporter = nodemailer.createTransport(config);
+    this.logger.log(`Mail configured: host=${host}, port=${port}, secure=${secure}, user=${user ? "set" : "not set"}`);
   }
 
   private async send(options: SendMailOptions) {
