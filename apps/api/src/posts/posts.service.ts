@@ -48,7 +48,16 @@ export class PostsService {
         author: {
           select: {
             id: true,
-            displayName: true
+            displayName: true,
+            profile: {
+              select: {
+                avatarBodyType: true,
+                avatarSkinTone: true,
+                avatarHairstyle: true,
+                avatarAccessory: true,
+                bio: true
+              }
+            }
           }
         }
       }
@@ -206,7 +215,16 @@ export class PostsService {
         author: {
           select: {
             id: true,
-            displayName: true
+            displayName: true,
+            profile: {
+              select: {
+                avatarBodyType: true,
+                avatarSkinTone: true,
+                avatarHairstyle: true,
+                avatarAccessory: true,
+                bio: true
+              }
+            }
           }
         }
       }

@@ -85,7 +85,16 @@ export class ThreadsService {
           author: {
             select: {
               id: true,
-              displayName: true
+              displayName: true,
+              profile: {
+                select: {
+                  avatarBodyType: true,
+                  avatarSkinTone: true,
+                  avatarHairstyle: true,
+                  avatarAccessory: true,
+                  bio: true
+                }
+              }
             }
           },
           _count: {
@@ -147,7 +156,16 @@ export class ThreadsService {
         author: {
           select: {
             id: true,
-            displayName: true
+            displayName: true,
+            profile: {
+              select: {
+                avatarBodyType: true,
+                avatarSkinTone: true,
+                avatarHairstyle: true,
+                avatarAccessory: true,
+                bio: true
+              }
+            }
           }
         },
         subcommunity: {
