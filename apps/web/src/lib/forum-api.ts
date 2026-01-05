@@ -11,6 +11,7 @@ import type {
   UpdatePostRequest,
   VoteRequest,
   Conversation,
+  Message,
   MessagesResponse,
   CreateConversationRequest,
   SendMessageRequest,
