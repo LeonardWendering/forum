@@ -8,11 +8,23 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
 
   constructor(private readonly configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.getOrThrow<string>("MAILHOG_HOST"),
-      port: this.configService.getOrThrow<number>("MAILHOG_PORT"),
+    const host = this.configService.get<string>("MAIL_HOST") || this.configService.get<string>("MAILHOG_HOST") || "localhost";
+    const port = this.configService.get<number>("MAIL_PORT") || this.configService.get<number>("MAILHOG_PORT") || 1025;
+    const user = this.configService.get<string>("MAIL_USER");
+    const pass = this.configService.get<string>("MAIL_PASS");
+
+    const config: nodemailer.TransportOptions = {
+      host,
+      port,
       secure: false
-    });
+    } as nodemailer.TransportOptions;
+
+    // Add auth if credentials are provided (for Gmail, etc.)
+    if (user && pass && user !== "skip" && pass !== "skip") {
+      (config as Record<string, unknown>).auth = { user, pass };
+    }
+
+    this.transporter = nodemailer.createTransport(config);
   }
 
   private async send(options: SendMailOptions) {
