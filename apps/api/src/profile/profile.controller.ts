@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch } from "@nestjs/common";
 import { ProfileService } from "./profile.service";
 import { UpdateAvatarDto } from "./dto/update-avatar.dto";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
@@ -31,5 +31,10 @@ export class ProfileController {
   @Public()
   async getPublicProfile(@Param("userId") userId: string) {
     return this.profileService.getPublicProfile(userId);
+  }
+
+  @Delete("profile/me")
+  async deleteAccount(@CurrentUser("id") userId: string) {
+    return this.profileService.deleteAccount(userId);
   }
 }

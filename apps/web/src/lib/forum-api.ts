@@ -132,5 +132,8 @@ export const profileApi = {
     api.patch("/profile/me/avatar", data),
 
   getPublicProfile: (userId: string): Promise<UserProfile> =>
-    api.get(`/users/${userId}`)
+    api.get(`/users/${userId}`),
+
+  deleteAccount: (): Promise<MessageResponse> =>
+    api.delete("/profile/me")
 };

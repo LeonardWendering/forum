@@ -108,4 +108,40 @@ export class ProfileService {
     });
     return profile?.avatarBodyType !== null;
   }
+
+  async deleteAccount(userId: string) {
+    // Update user's display name to "(deleted user)" and clear sensitive data
+    await this.prisma.$transaction(async (tx) => {
+      // Update user
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          displayName: "(deleted user)",
+          email: `deleted_${userId}@deleted.local`,
+          passwordHash: "DELETED",
+          status: "DISABLED"
+        }
+      });
+
+      // Clear profile
+      await tx.profile.update({
+        where: { userId },
+        data: {
+          bio: null,
+          avatarBodyType: null,
+          avatarSkinColor: null,
+          avatarHairstyle: null,
+          avatarAccessory: null
+        }
+      });
+
+      // Revoke all sessions
+      await tx.session.updateMany({
+        where: { userId },
+        data: { revokedAt: new Date() }
+      });
+    });
+
+    return { message: "Account deleted successfully" };
+  }
 }

@@ -6,19 +6,22 @@ import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 import { profileApi, messageApi } from "@/lib/forum-api";
 import { ApiClientError } from "@/lib/api";
-import { Button, Card, CardContent, Alert, Avatar } from "@/components/ui";
+import { Button, Card, CardContent, Alert, Avatar, Input } from "@/components/ui";
 import type { UserProfile } from "@/lib/forum-types";
 
 export default function UserProfilePage() {
   const params = useParams();
   const router = useRouter();
   const userId = params.userId as string;
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isStartingConversation, setIsStartingConversation] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const isOwnProfile = user?.id === userId;
 
@@ -71,6 +74,25 @@ export default function UserProfilePage() {
       }
     } finally {
       setIsStartingConversation(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") return;
+
+    setIsDeleting(true);
+    try {
+      await profileApi.deleteAccount();
+      await logout();
+      router.push("/");
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.message);
+      } else {
+        setError("Failed to delete account");
+      }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -153,12 +175,65 @@ export default function UserProfilePage() {
               )}
 
               {isOwnProfile && (
-                <Link
-                  href="/setup-avatar"
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  Edit avatar
-                </Link>
+                <div className="space-y-4">
+                  <div className="flex gap-3">
+                    <Link href="/setup-avatar">
+                      <Button variant="outline">
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Change Avatar
+                      </Button>
+                    </Link>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-200">
+                    {!showDeleteConfirm ? (
+                      <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="text-sm text-red-600 hover:text-red-800"
+                      >
+                        Delete Account
+                      </button>
+                    ) : (
+                      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-sm text-red-800 mb-3">
+                          This action cannot be undone. Your display name will be changed to &quot;(deleted user)&quot; and you will be logged out.
+                        </p>
+                        <p className="text-sm text-red-800 mb-3">
+                          Type <strong>DELETE</strong> to confirm:
+                        </p>
+                        <Input
+                          value={deleteConfirmText}
+                          onChange={(e) => setDeleteConfirmText(e.target.value)}
+                          placeholder="Type DELETE"
+                          className="mb-3"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setShowDeleteConfirm(false);
+                              setDeleteConfirmText("");
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleDeleteAccount}
+                            isLoading={isDeleting}
+                            disabled={deleteConfirmText !== "DELETE"}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            Delete Account
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </div>
