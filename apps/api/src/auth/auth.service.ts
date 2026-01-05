@@ -33,6 +33,7 @@ export class AuthService {
   private readonly refreshTtlMs: number;
   private readonly accessTtlSeconds: number;
   private readonly refreshTtlSeconds: number;
+  private readonly skipEmailVerification: boolean;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -44,12 +45,17 @@ export class AuthService {
     this.refreshSecret = this.configService.getOrThrow<string>("JWT_REFRESH_TOKEN_SECRET");
     this.accessTtl = this.configService.getOrThrow<string>("JWT_ACCESS_TOKEN_TTL");
     this.refreshTtl = this.configService.getOrThrow<string>("JWT_REFRESH_TOKEN_TTL");
+    this.skipEmailVerification = this.configService.get<string>("SKIP_EMAIL_VERIFICATION") === "true";
 
     this.accessTtlMs = durationToMs(this.accessTtl, "15m");
     this.refreshTtlMs = durationToMs(this.refreshTtl, "30d");
 
     this.accessTtlSeconds = Math.floor(this.accessTtlMs / 1000);
     this.refreshTtlSeconds = Math.floor(this.refreshTtlMs / 1000);
+
+    if (this.skipEmailVerification) {
+      this.logger.warn("Email verification is DISABLED - users will be auto-verified on registration");
+    }
   }
 
   async register(dto: RegisterDto) {
@@ -69,6 +75,22 @@ export class AuthService {
 
     // If user exists but is NOT verified, update their info and resend verification
     if (existingUser && !existingUser.emailVerifiedAt) {
+      if (this.skipEmailVerification) {
+        // Auto-verify the user
+        await this.prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            passwordHash,
+            displayName,
+            emailVerifiedAt: new Date()
+          }
+        });
+
+        return {
+          message: "Registration successful. You can now sign in."
+        };
+      }
+
       const { user, token } = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         // Update the existing unverified user
         const updatedUser = await tx.user.update({
@@ -97,6 +119,25 @@ export class AuthService {
     }
 
     // Create new user
+    if (this.skipEmailVerification) {
+      // Auto-verify the user on creation
+      await this.prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          displayName,
+          emailVerifiedAt: new Date(),
+          profile: {
+            create: {}
+          }
+        }
+      });
+
+      return {
+        message: "Registration successful. You can now sign in."
+      };
+    }
+
     const { user, token } = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const createdUser = await tx.user.create({
         data: {
