@@ -7,7 +7,7 @@ import { useAuth } from "@/context/auth-context";
 import { threadApi, postApi } from "@/lib/forum-api";
 import { ApiClientError } from "@/lib/api";
 import { PostCard, PostComposer } from "@/components/forum";
-import { Alert } from "@/components/ui";
+import { Alert, Avatar } from "@/components/ui";
 import type { Thread, Post } from "@/lib/forum-types";
 
 export default function ThreadPage() {
@@ -110,7 +110,20 @@ export default function ThreadPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{thread.title}</h1>
             <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
-              <span>by {thread.author.displayName}</span>
+              <Link href={`/u/${thread.author.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <Avatar
+                  config={thread.author.profile?.avatarBodyType ? {
+                    bodyType: thread.author.profile.avatarBodyType,
+                    skinTone: thread.author.profile.avatarSkinTone,
+                    hairstyle: thread.author.profile.avatarHairstyle || 1,
+                    accessory: thread.author.profile.avatarAccessory || "NONE"
+                  } : undefined}
+                  size="sm"
+                />
+                <span className="font-medium text-gray-900 hover:text-blue-600 transition-colors">
+                  {thread.author.displayName}
+                </span>
+              </Link>
               <span>
                 {new Date(thread.createdAt).toLocaleDateString()} at{" "}
                 {new Date(thread.createdAt).toLocaleTimeString([], {
@@ -126,12 +139,13 @@ export default function ThreadPage() {
 
       {/* Posts */}
       <div className="space-y-4 mb-6">
-        {posts.map((post) => (
+        {posts.map((post, index) => (
           <PostCard
             key={post.id}
             post={post}
             threadId={threadId}
             isLocked={thread.isLocked}
+            isFirstPost={index === 0}
             onReply={handleReply}
             onPostUpdated={loadData}
           />

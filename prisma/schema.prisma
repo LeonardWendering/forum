@@ -52,13 +52,36 @@ model User {
   conversations2        Conversation[] @relation("ConversationUser2")
 }
 
+enum AvatarBodyType {
+  MASCULINE
+  NEUTRAL
+  FEMININE
+}
+
+enum AvatarSkinTone {
+  LIGHT
+  MEDIUM
+  DARK
+}
+
+enum AvatarAccessory {
+  NONE
+  EARRINGS
+  SUNGLASSES
+  PARROT
+}
+
 model Profile {
-  userId     String  @id @map("user_id")
-  avatarUrl  String? @map("avatar_url")
-  bio        String?
-  timezone   String?
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  userId           String           @id @map("user_id")
+  avatarUrl        String?          @map("avatar_url")
+  avatarBodyType   AvatarBodyType?  @map("avatar_body_type")
+  avatarSkinTone   AvatarSkinTone?  @map("avatar_skin_tone")
+  avatarHairstyle  Int?             @map("avatar_hairstyle") // 1-6
+  avatarAccessory  AvatarAccessory? @map("avatar_accessory")
+  bio              String?
+  timezone         String?
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

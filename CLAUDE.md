@@ -685,6 +685,34 @@ Add WebSocket support for:
 
 ---
 
+## Planned UI/UX Improvements
+
+### Post Styling Enhancements
+1. **First Post Highlighting**: The original post (OP) in a thread should have a distinct background color to differentiate it from replies
+2. **Post Borders**: All posts should have subtle borders to better separate them from the background
+3. **Reply Separation**: Nested replies should have more pronounced separator lines for clearer visual hierarchy
+
+### Avatar System
+- **Avatar Generation**: Users will create a personalized avatar upon first login
+- **Avatar Options**:
+  - Body types: masculine, neutral, feminine
+  - Skin tones: light, medium, dark
+  - Hairstyles: 6 options (2 per body type category)
+  - Accessories: none, earrings, sunglasses, parrot on shoulder
+- **Avatar Display**: Avatars appear next to usernames in posts and on profile pages
+
+### Username Generation
+- **Suggested Usernames**: When registering, users receive auto-generated username suggestions
+- **Format**: `adjective-fruit_or_vegetable-letter-four_digit_number` (e.g., "happy-carrot-a-1234")
+- **Regeneration**: Users can click to generate new suggestions until they find one they like
+
+### Profile Interactions
+- **Clickable Usernames**: All displayed usernames link to the user's profile page
+- **Send Message**: Profile pages include a "Send Message" button to initiate private conversations
+- **Message from Posts**: Users can click on a post author's name to view their profile and send a message
+
+---
+
 ## Progress Checklist
 
 - [x] Project scaffolding (monorepo, Next.js, NestJS)
@@ -704,6 +732,11 @@ Add WebSocket support for:
 - [x] Frontend auth pages (login, register, verify, reset)
 - [x] Frontend forum pages (communities, threads)
 - [x] Frontend messaging
+- [ ] Post styling improvements (borders, OP highlighting, reply separators)
+- [ ] Avatar generation system
+- [ ] Username suggestion generator
+- [ ] Clickable profile links
+- [ ] Send message to users from profile
 - [ ] Rate limiting (optional)
 - [ ] Admin dashboard (optional)
 - [ ] Dockerfiles for production

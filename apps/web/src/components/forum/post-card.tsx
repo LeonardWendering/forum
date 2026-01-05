@@ -1,16 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 import { postApi } from "@/lib/forum-api";
-import { Button } from "@/components/ui";
+import { Button, Avatar } from "@/components/ui";
 import type { Post } from "@/lib/forum-types";
+import type { AvatarConfig } from "@/components/ui";
 
 interface PostCardProps {
   post: Post;
   threadId: string;
   isLocked?: boolean;
   depth?: number;
+  isFirstPost?: boolean;
   onReply?: (parentId: string, content: string) => Promise<void>;
   onPostUpdated?: () => void;
 }
@@ -20,6 +23,7 @@ export function PostCard({
   threadId,
   isLocked = false,
   depth = 0,
+  isFirstPost = false,
   onReply,
   onPostUpdated
 }: PostCardProps) {
@@ -76,10 +80,10 @@ export function PostCard({
   return (
     <div
       className={`
-        ${depth > 0 ? "ml-4 pl-4 border-l-2 border-gray-100" : ""}
+        ${depth > 0 ? "ml-4 pl-4 border-l-2 border-gray-300" : ""}
       `}
     >
-      <div className="bg-white rounded-lg border border-gray-100 p-4 mb-3">
+      <div className={`rounded-lg border ${isFirstPost ? "bg-blue-50 border-blue-200" : "bg-white border-gray-200"} p-4 mb-3 shadow-sm`}>
         <div className="flex gap-3">
           {/* Vote buttons */}
           {isAuthenticated && (
@@ -116,13 +120,26 @@ export function PostCard({
 
           <div className="flex-1">
             {/* Author and date */}
-            <div className="flex items-center gap-2 mb-2 text-sm">
-              <span className="font-medium text-gray-900">{post.author.displayName}</span>
+            <div className="flex items-center gap-2 mb-2">
+              <Link href={`/u/${post.author.id}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <Avatar
+                  config={post.author.profile?.avatarBodyType ? {
+                    bodyType: post.author.profile.avatarBodyType,
+                    skinTone: post.author.profile.avatarSkinTone,
+                    hairstyle: post.author.profile.avatarHairstyle || 1,
+                    accessory: post.author.profile.avatarAccessory || "NONE"
+                  } : undefined}
+                  size="sm"
+                />
+                <span className="font-medium text-gray-900 text-sm hover:text-blue-600 transition-colors">
+                  {post.author.displayName}
+                </span>
+              </Link>
               {isAuthor && (
                 <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">You</span>
               )}
-              <span className="text-gray-400">•</span>
-              <span className="text-gray-500">{formatDate(post.createdAt)}</span>
+              <span className="text-gray-400 text-sm">•</span>
+              <span className="text-gray-500 text-sm">{formatDate(post.createdAt)}</span>
               {post.updatedAt !== post.createdAt && (
                 <span className="text-gray-400 text-xs">(edited)</span>
               )}
@@ -194,6 +211,7 @@ export function PostCard({
               threadId={threadId}
               isLocked={isLocked}
               depth={depth + 1}
+              isFirstPost={false}
               onReply={onReply}
               onPostUpdated={onPostUpdated}
             />

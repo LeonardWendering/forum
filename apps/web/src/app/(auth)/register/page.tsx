@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { Button, FormField, Alert, Card, CardHeader, CardContent, CardFooter } from "@/components/ui";
 import { ApiClientError } from "@/lib/api";
+import { generateUsernameSuggestions } from "@/lib/username-generator";
 
 interface FormErrors {
   email?: string;
@@ -27,12 +28,27 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Generate initial suggestions
+    setUsernameSuggestions(generateUsernameSuggestions(3));
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: undefined }));
     setApiError(null);
+  };
+
+  const handleUseSuggestion = (suggestion: string) => {
+    setFormData((prev) => ({ ...prev, displayName: suggestion }));
+    setErrors((prev) => ({ ...prev, displayName: undefined }));
+  };
+
+  const handleGenerateNewSuggestions = () => {
+    setUsernameSuggestions(generateUsernameSuggestions(3));
   };
 
   const validate = (): boolean => {
@@ -120,18 +136,49 @@ export default function RegisterPage() {
             disabled={isSubmitting}
           />
 
-          <FormField
-            label="Display Name"
-            name="displayName"
-            type="text"
-            placeholder="How you'll appear to others"
-            value={formData.displayName}
-            onChange={handleChange}
-            error={errors.displayName}
-            required
-            autoComplete="name"
-            disabled={isSubmitting}
-          />
+          <div>
+            <FormField
+              label="Display Name"
+              name="displayName"
+              type="text"
+              placeholder="How you'll appear to others"
+              value={formData.displayName}
+              onChange={handleChange}
+              error={errors.displayName}
+              required
+              autoComplete="name"
+              disabled={isSubmitting}
+            />
+            <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-gray-600">Suggestions:</p>
+                <button
+                  type="button"
+                  onClick={handleGenerateNewSuggestions}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                  disabled={isSubmitting}
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Generate new
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {usernameSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    onClick={() => handleUseSuggestion(suggestion)}
+                    className="px-3 py-1.5 bg-white text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 transition-colors"
+                    disabled={isSubmitting}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
 
           <FormField
             label="Password"

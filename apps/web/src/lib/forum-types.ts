@@ -32,14 +32,26 @@ export interface JoinSubcommunityRequest {
   password?: string;
 }
 
+// User profile types
+export interface UserProfile {
+  avatarBodyType?: "MASCULINE" | "NEUTRAL" | "FEMININE";
+  avatarSkinTone?: "LIGHT" | "MEDIUM" | "DARK";
+  avatarHairstyle?: number;
+  avatarAccessory?: "NONE" | "EARRINGS" | "SUNGLASSES" | "PARROT";
+  bio?: string;
+}
+
+export interface Author {
+  id: string;
+  displayName: string;
+  profile?: UserProfile;
+}
+
 // Thread types
 export interface Thread {
   id: string;
   title: string;
-  author: {
-    id: string;
-    displayName: string;
-  };
+  author: Author;
   subcommunity?: {
     id: string;
     name: string;
@@ -68,10 +80,7 @@ export interface CreateThreadRequest {
 export interface Post {
   id: string;
   content: string;
-  author: {
-    id: string;
-    displayName: string;
-  };
+  author: Author;
   parentId: string | null;
   createdAt: string;
   updatedAt: string;
