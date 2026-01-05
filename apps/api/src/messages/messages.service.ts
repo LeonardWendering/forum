@@ -82,13 +82,29 @@ export class MessagesService {
         user1: {
           select: {
             id: true,
-            displayName: true
+            displayName: true,
+            profile: {
+              select: {
+                avatarBodyType: true,
+                avatarSkinColor: true,
+                avatarHairstyle: true,
+                avatarAccessory: true
+              }
+            }
           }
         },
         user2: {
           select: {
             id: true,
-            displayName: true
+            displayName: true,
+            profile: {
+              select: {
+                avatarBodyType: true,
+                avatarSkinColor: true,
+                avatarHairstyle: true,
+                avatarAccessory: true
+              }
+            }
           }
         },
         messages: {
@@ -121,12 +137,23 @@ export class MessagesService {
     const unreadMap = new Map(unreadCounts.map((u) => [u.conversationId, u._count]));
 
     return conversations.map((conv) => {
-      const otherUser = conv.participant1 === userId ? conv.user2 : conv.user1;
+      const otherUserData = conv.participant1 === userId ? conv.user2 : conv.user1;
       const lastMessage = conv.messages[0];
+
+      const avatarConfig = otherUserData.profile?.avatarBodyType ? {
+        bodyType: otherUserData.profile.avatarBodyType,
+        skinColor: otherUserData.profile.avatarSkinColor,
+        hairstyle: otherUserData.profile.avatarHairstyle,
+        accessory: otherUserData.profile.avatarAccessory
+      } : null;
 
       return {
         id: conv.id,
-        otherUser,
+        otherUser: {
+          id: otherUserData.id,
+          displayName: otherUserData.displayName,
+          avatarConfig
+        },
         lastMessage: lastMessage
           ? {
               content: lastMessage.content.substring(0, 100),

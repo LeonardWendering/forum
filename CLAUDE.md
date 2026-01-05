@@ -650,6 +650,50 @@ docker compose -f docker-compose.prod.yml restart nginx
 
 ---
 
+## Current Tasks (Feedback Implementation) - COMPLETED
+
+All feedback has been implemented:
+
+### 1. Post Visual Improvements - DONE
+- [x] Highlight the first/original post (OP) with blue background (`bg-blue-50`, `border-blue-200`)
+- [x] Add light borders around all posts (`border-2`, `shadow-sm`)
+- [x] Make reply lines more prominent (`border-blue-300`, increased indentation)
+
+### 2. Avatar System - DONE
+- [x] Add avatar selection page at `/setup-avatar`
+- [x] Store avatar configuration in Profile model (Prisma schema updated with enums)
+- [x] Display avatars next to usernames in posts and profile pages
+- [x] Avatar options implemented:
+  - **Body types (3):** MALE, NEUTRAL, FEMALE
+  - **Skin colors (3):** LIGHT, MEDIUM, DARK
+  - **Hairstyles (6):** MALE_SHORT, MALE_SPIKY, NEUTRAL_BOB, NEUTRAL_CURLY, FEMALE_LONG, FEMALE_PONYTAIL
+  - **Accessories (4):** NONE, EARRING, SUNGLASSES, PARROT
+
+### 3. Username Suggestions - DONE
+- [x] Add username suggestion feature during registration
+- [x] Format: `adjective-fruit_or_vegetable-letter-four_digit_number`
+- [x] Add button to regenerate random username suggestion
+
+### 4. Profile Links - DONE
+- [x] Make usernames clickable in posts (links to `/u/[userId]`)
+- [x] Make author names clickable in thread headers
+- [x] Created user profile page at `/u/[userId]`
+- [x] Display user info, avatar, and "Send Message" button
+
+### 5. Messaging Fix - DONE
+- [x] "Send Message" button on user profiles that creates/opens conversation
+- [x] Conversation creation works correctly (creates new or opens existing)
+- [x] Avatars displayed in conversation list
+
+### Database Migration Required
+After pulling these changes, run the following to apply the avatar schema changes:
+```powershell
+pnpm prisma:generate
+pnpm prisma:migrate
+```
+
+---
+
 ## Future Improvements (Optional)
 
 ### Rate Limiting

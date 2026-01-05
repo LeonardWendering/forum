@@ -1,3 +1,16 @@
+// Avatar types
+export type AvatarBodyType = "MALE" | "NEUTRAL" | "FEMALE";
+export type AvatarSkinColor = "LIGHT" | "MEDIUM" | "DARK";
+export type AvatarHairstyle = "MALE_SHORT" | "MALE_SPIKY" | "NEUTRAL_BOB" | "NEUTRAL_CURLY" | "FEMALE_LONG" | "FEMALE_PONYTAIL";
+export type AvatarAccessory = "NONE" | "EARRING" | "SUNGLASSES" | "PARROT";
+
+export interface AvatarConfig {
+  bodyType: AvatarBodyType;
+  skinColor: AvatarSkinColor;
+  hairstyle: AvatarHairstyle;
+  accessory: AvatarAccessory | null;
+}
+
 // Subcommunity types
 export type SubcommunityType = "PUBLIC" | "INVITE_ONLY" | "PASSWORD_PROTECTED";
 
@@ -39,6 +52,7 @@ export interface Thread {
   author: {
     id: string;
     displayName: string;
+    avatarConfig?: AvatarConfig | null;
   };
   subcommunity?: {
     id: string;
@@ -71,6 +85,7 @@ export interface Post {
   author: {
     id: string;
     displayName: string;
+    avatarConfig?: AvatarConfig | null;
   };
   parentId: string | null;
   createdAt: string;
@@ -94,12 +109,29 @@ export interface VoteRequest {
   value: 1 | -1;
 }
 
+// Profile types
+export interface UserProfile {
+  id: string;
+  displayName: string;
+  bio: string | null;
+  avatarConfig: AvatarConfig | null;
+  memberSince: string;
+}
+
+export interface UpdateAvatarRequest {
+  bodyType: AvatarBodyType;
+  skinColor: AvatarSkinColor;
+  hairstyle: AvatarHairstyle;
+  accessory?: AvatarAccessory;
+}
+
 // Messaging types
 export interface Conversation {
   id: string;
   otherUser: {
     id: string;
     displayName: string;
+    avatarConfig?: AvatarConfig | null;
   };
   lastMessage?: {
     content: string;

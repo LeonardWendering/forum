@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { Button, FormField, Alert, Card, CardHeader, CardContent, CardFooter } from "@/components/ui";
 import { ApiClientError } from "@/lib/api";
+import { generateUsername } from "@/lib/username-generator";
 
 interface FormErrors {
   email?: string;
@@ -27,6 +28,20 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [suggestedUsername, setSuggestedUsername] = useState("");
+
+  useEffect(() => {
+    setSuggestedUsername(generateUsername());
+  }, []);
+
+  const regenerateUsername = () => {
+    setSuggestedUsername(generateUsername());
+  };
+
+  const useSuggestion = () => {
+    setFormData((prev) => ({ ...prev, displayName: suggestedUsername }));
+    setErrors((prev) => ({ ...prev, displayName: undefined }));
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -120,18 +135,51 @@ export default function RegisterPage() {
             disabled={isSubmitting}
           />
 
-          <FormField
-            label="Display Name"
-            name="displayName"
-            type="text"
-            placeholder="How you'll appear to others"
-            value={formData.displayName}
-            onChange={handleChange}
-            error={errors.displayName}
-            required
-            autoComplete="name"
-            disabled={isSubmitting}
-          />
+          <div>
+            <FormField
+              label="Display Name"
+              name="displayName"
+              type="text"
+              placeholder="How you'll appear to others"
+              value={formData.displayName}
+              onChange={handleChange}
+              error={errors.displayName}
+              required
+              autoComplete="name"
+              disabled={isSubmitting}
+            />
+            {suggestedUsername && (
+              <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="text-xs text-gray-500 mb-1">Suggested username:</div>
+                <div className="flex items-center justify-between gap-2">
+                  <code className="text-sm font-mono text-gray-800 bg-white px-2 py-1 rounded border">
+                    {suggestedUsername}
+                  </code>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={regenerateUsername}
+                      className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-200 transition-colors"
+                      disabled={isSubmitting}
+                    >
+                      <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      New
+                    </button>
+                    <button
+                      type="button"
+                      onClick={useSuggestion}
+                      className="text-xs text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50 transition-colors font-medium"
+                      disabled={isSubmitting}
+                    >
+                      Use this
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           <FormField
             label="Password"

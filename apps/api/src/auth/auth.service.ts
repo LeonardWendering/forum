@@ -45,7 +45,9 @@ export class AuthService {
     this.refreshSecret = this.configService.getOrThrow<string>("JWT_REFRESH_TOKEN_SECRET");
     this.accessTtl = this.configService.getOrThrow<string>("JWT_ACCESS_TOKEN_TTL");
     this.refreshTtl = this.configService.getOrThrow<string>("JWT_REFRESH_TOKEN_TTL");
-    this.skipEmailVerification = this.configService.get<string>("SKIP_EMAIL_VERIFICATION") === "true";
+    const skipEnvValue = this.configService.get<string>("SKIP_EMAIL_VERIFICATION");
+    this.skipEmailVerification = skipEnvValue === "true";
+    this.logger.log(`SKIP_EMAIL_VERIFICATION env value: "${skipEnvValue}", parsed as: ${this.skipEmailVerification}`);
 
     this.accessTtlMs = durationToMs(this.accessTtl, "15m");
     this.refreshTtlMs = durationToMs(this.refreshTtl, "30d");

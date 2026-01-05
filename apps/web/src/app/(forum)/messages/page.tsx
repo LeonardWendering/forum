@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
 import { messageApi } from "@/lib/forum-api";
-import { Alert } from "@/components/ui";
+import { Alert, Avatar } from "@/components/ui";
 import type { Conversation } from "@/lib/forum-types";
 
 export default function MessagesPage() {
@@ -95,9 +95,15 @@ export default function MessagesPage() {
             </svg>
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No messages yet</h3>
-          <p className="text-gray-600">
-            Start a conversation with someone from the community!
+          <p className="text-gray-600 mb-4">
+            Start a conversation by clicking on a username in a thread and then clicking &quot;Send Message&quot; on their profile.
           </p>
+          <Link
+            href="/communities"
+            className="text-blue-600 hover:text-blue-800 font-medium"
+          >
+            Browse communities
+          </Link>
         </div>
       ) : (
         <div className="space-y-2">
@@ -110,16 +116,20 @@ export default function MessagesPage() {
                 `}
               >
                 <div className="flex items-center gap-3">
-                  {/* Avatar placeholder */}
-                  <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                    <span className="text-gray-600 font-medium">
-                      {conv.otherUser.displayName.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
+                  {/* Avatar */}
+                  <Avatar
+                    config={conv.otherUser.avatarConfig ? {
+                      bodyType: conv.otherUser.avatarConfig.bodyType,
+                      skinColor: conv.otherUser.avatarConfig.skinColor,
+                      hairstyle: conv.otherUser.avatarConfig.hairstyle,
+                      accessory: conv.otherUser.avatarConfig.accessory
+                    } : null}
+                    size="md"
+                  />
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-900">
+                      <span className="font-medium text-gray-900 hover:text-blue-600">
                         {conv.otherUser.displayName}
                       </span>
                       {conv.lastMessage && (

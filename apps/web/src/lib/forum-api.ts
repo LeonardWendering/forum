@@ -16,7 +16,10 @@ import type {
   CreateConversationRequest,
   SendMessageRequest,
   Member,
-  MessageResponse
+  MessageResponse,
+  UserProfile,
+  UpdateAvatarRequest,
+  AvatarConfig
 } from "./forum-types";
 
 // Subcommunities API
@@ -115,4 +118,19 @@ export const messageApi = {
 
   getUnreadCount: (): Promise<{ unreadCount: number }> =>
     api.get("/conversations/unread", true)
+};
+
+// Profile API
+export const profileApi = {
+  getMyProfile: (): Promise<{ userId: string; displayName: string; bio: string | null; avatarConfig: AvatarConfig | null }> =>
+    api.get("/profile/me", true),
+
+  hasAvatar: (): Promise<{ hasAvatar: boolean }> =>
+    api.get("/profile/me/has-avatar", true),
+
+  updateAvatar: (data: UpdateAvatarRequest): Promise<{ avatarConfig: AvatarConfig }> =>
+    api.patch("/profile/me/avatar", data),
+
+  getPublicProfile: (userId: string): Promise<UserProfile> =>
+    api.get(`/users/${userId}`)
 };

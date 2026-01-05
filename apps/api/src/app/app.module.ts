@@ -4,6 +4,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { validateEnv } from "../config/env.validation";
 import { PrismaModule } from "../database/prisma.module";
 import { AuthModule } from "../auth/auth.module";
+import { ProfileModule } from "../profile/profile.module";
 import { SubcommunitiesModule } from "../subcommunities/subcommunities.module";
 import { ThreadsModule } from "../threads/threads.module";
 import { PostsModule } from "../posts/posts.module";
@@ -22,6 +23,7 @@ import { AppController } from "./app.controller";
     }),
     PrismaModule,
     AuthModule,
+    ProfileModule,
     SubcommunitiesModule,
     ThreadsModule,
     PostsModule,

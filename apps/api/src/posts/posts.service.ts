@@ -82,7 +82,15 @@ export class PostsService {
         author: {
           select: {
             id: true,
-            displayName: true
+            displayName: true,
+            profile: {
+              select: {
+                avatarBodyType: true,
+                avatarSkinColor: true,
+                avatarHairstyle: true,
+                avatarAccessory: true
+              }
+            }
           }
         },
         votes: true,
@@ -108,10 +116,21 @@ export class PostsService {
           ? post.votes.reduce((sum, v) => sum + v.value, 0)
           : undefined;
 
+      const avatarConfig = post.author.profile?.avatarBodyType ? {
+        bodyType: post.author.profile.avatarBodyType,
+        skinColor: post.author.profile.avatarSkinColor,
+        hairstyle: post.author.profile.avatarHairstyle,
+        accessory: post.author.profile.avatarAccessory
+      } : null;
+
       postMap.set(post.id, {
         id: post.id,
         content: post.content,
-        author: post.author,
+        author: {
+          id: post.author.id,
+          displayName: post.author.displayName,
+          avatarConfig
+        },
         parentId: post.parentId,
         createdAt: post.createdAt,
         updatedAt: post.updatedAt,

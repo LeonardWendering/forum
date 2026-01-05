@@ -110,7 +110,14 @@ export default function ThreadPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{thread.title}</h1>
             <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
-              <span>by {thread.author.displayName}</span>
+              <span>by{" "}
+                <Link
+                  href={`/u/${thread.author.id}`}
+                  className="text-gray-700 hover:text-blue-600 transition-colors"
+                >
+                  {thread.author.displayName}
+                </Link>
+              </span>
               <span>
                 {new Date(thread.createdAt).toLocaleDateString()} at{" "}
                 {new Date(thread.createdAt).toLocaleTimeString([], {
@@ -126,12 +133,13 @@ export default function ThreadPage() {
 
       {/* Posts */}
       <div className="space-y-4 mb-6">
-        {posts.map((post) => (
+        {posts.map((post, index) => (
           <PostCard
             key={post.id}
             post={post}
             threadId={threadId}
             isLocked={thread.isLocked}
+            isOriginalPost={index === 0}
             onReply={handleReply}
             onPostUpdated={loadData}
           />
