@@ -37,9 +37,12 @@ export function Header() {
             <div className="h-9 w-24 bg-gray-200 animate-pulse rounded-lg" />
           ) : isAuthenticated && user ? (
             <div className="flex items-center gap-3">
-              <span className="hidden sm:block text-sm text-gray-600">
+              <Link
+                href={`/u/${user.id}`}
+                className="hidden sm:block text-sm text-gray-600 hover:text-blue-600 transition-colors"
+              >
                 {user.displayName}
-              </span>
+              </Link>
               <Button variant="outline" size="sm" onClick={() => logout()}>
                 Logout
               </Button>
