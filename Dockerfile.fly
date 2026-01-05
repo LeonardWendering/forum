@@ -1,0 +1,29 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Copy everything
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY prisma/ ./prisma/
+COPY packages/ ./packages/
+COPY apps/api/ ./apps/api/
+
+# Install dependencies
+RUN pnpm install
+
+# Generate Prisma client
+RUN pnpm prisma generate
+
+# Build API
+RUN pnpm --filter api build
+
+# Set working directory to api
+WORKDIR /app/apps/api
+
+EXPOSE 4000
+
+# Run migrations and start
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
