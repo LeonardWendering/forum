@@ -57,22 +57,36 @@ export class AuthService {
     const displayName = dto.displayName.trim();
     const passwordHash = await argon2.hash(dto.password);
 
-    try {
+    // Check if user already exists
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email }
+    });
+
+    // If user exists and is verified, reject registration
+    if (existingUser && existingUser.emailVerifiedAt) {
+      throw new ConflictException("An account with this email already exists.");
+    }
+
+    // If user exists but is NOT verified, update their info and resend verification
+    if (existingUser && !existingUser.emailVerifiedAt) {
       const { user, token } = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-        const createdUser = await tx.user.create({
+        // Update the existing unverified user
+        const updatedUser = await tx.user.update({
+          where: { id: existingUser.id },
           data: {
-            email,
             passwordHash,
-            displayName,
-            profile: {
-              create: {}
-            }
+            displayName
           }
         });
 
-        const verificationToken = await this.issueEmailVerificationToken(tx, createdUser.id);
+        // Delete old verification tokens
+        await tx.emailVerificationToken.deleteMany({
+          where: { userId: existingUser.id }
+        });
 
-        return { user: createdUser, token: verificationToken };
+        const verificationToken = await this.issueEmailVerificationToken(tx, updatedUser.id);
+
+        return { user: updatedUser, token: verificationToken };
       });
 
       await this.mailService.sendVerificationEmail(user.email, token.token);
@@ -80,12 +94,31 @@ export class AuthService {
       return {
         message: "Registration successful. Check your email for a verification code."
       };
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        throw new ConflictException("An account with this email already exists.");
-      }
-      throw error;
     }
+
+    // Create new user
+    const { user, token } = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const createdUser = await tx.user.create({
+        data: {
+          email,
+          passwordHash,
+          displayName,
+          profile: {
+            create: {}
+          }
+        }
+      });
+
+      const verificationToken = await this.issueEmailVerificationToken(tx, createdUser.id);
+
+      return { user: createdUser, token: verificationToken };
+    });
+
+    await this.mailService.sendVerificationEmail(user.email, token.token);
+
+    return {
+      message: "Registration successful. Check your email for a verification code."
+    };
   }
 
   async resendVerification(email: string) {
