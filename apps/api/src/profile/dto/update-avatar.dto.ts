@@ -3,13 +3,13 @@ import { AvatarBodyType, AvatarSkinColor, AvatarHairstyle, AvatarAccessory } fro
 
 export class UpdateAvatarDto {
   @IsEnum(AvatarBodyType)
-  bodyType: AvatarBodyType;
+  bodyType!: AvatarBodyType;
 
   @IsEnum(AvatarSkinColor)
-  skinColor: AvatarSkinColor;
+  skinColor!: AvatarSkinColor;
 
   @IsEnum(AvatarHairstyle)
-  hairstyle: AvatarHairstyle;
+  hairstyle!: AvatarHairstyle;
 
   @IsEnum(AvatarAccessory)
   @IsOptional()
