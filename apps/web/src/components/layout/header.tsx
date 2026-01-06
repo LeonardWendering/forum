@@ -6,6 +6,7 @@ import { Button } from "@/components/ui";
 
 export function Header() {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
 
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur">
@@ -28,7 +29,7 @@ export function Header() {
               >
                 Messages
               </Link>
-              {user?.role === "ADMIN" && (
+              {isAdmin && (
                 <>
                   <Link
                     href="/admin"
@@ -53,13 +54,36 @@ export function Header() {
             <div className="h-9 w-24 bg-gray-200 animate-pulse rounded-lg" />
           ) : isAuthenticated && user ? (
             <div className="flex items-center gap-3">
+              {isAdmin && (
+                <div className="flex items-center gap-2 md:hidden">
+                  <Link
+                    href="/admin"
+                    className="text-sm text-purple-600 hover:text-purple-800 font-medium transition-colors"
+                  >
+                    Admin
+                  </Link>
+                  <Link
+                    href="/admin/invite-codes"
+                    className="text-sm text-purple-600 hover:text-purple-800 font-medium transition-colors"
+                  >
+                    Invite
+                  </Link>
+                </div>
+              )}
+              <Link
+                href={`/u/${user.id}`}
+                className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
+              >
+                Profile
+              </Link>
               <Link
                 href={`/u/${user.id}`}
                 className="hidden sm:flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
+                title="Go to your profile"
               >
                 <span>Welcome,</span>
                 <span className="font-medium text-gray-900">{user.displayName}</span>
-                {user.role === "ADMIN" && (
+                {isAdmin && (
                   <span className="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded font-medium">
                     Admin
                   </span>

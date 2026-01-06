@@ -189,7 +189,7 @@ export function PostCard({
             <div className="text-gray-700 whitespace-pre-wrap break-words">{post.content}</div>
 
             {/* Actions */}
-            <div className="flex items-center gap-3 mt-3">
+            <div className="flex flex-wrap items-center gap-3 mt-3">
               {isAuthenticated && !isLocked && depth < maxDepth && (
                 <button
                   onClick={() => setShowReplyForm(!showReplyForm)}

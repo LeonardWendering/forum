@@ -3,27 +3,51 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
-import { postApi } from "@/lib/forum-api";
+import { postApi, profileApi } from "@/lib/forum-api";
 import { Header } from "@/components/layout/header";
 import { Button, Card, CardContent } from "@/components/ui";
 import type { UserPost } from "@/lib/forum-types";
 
 export default function HomePage() {
-  const { isLoading, isAuthenticated } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
   const [latestPosts, setLatestPosts] = useState<UserPost[]>([]);
+  const [postsTitle, setPostsTitle] = useState("Latest Posts");
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
+  const [postsError, setPostsError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isAuthenticated && user) {
+      loadUserPosts(user.id);
+      return;
+    }
     loadLatestPosts();
-  }, []);
+  }, [isAuthenticated, user]);
+
+  const loadUserPosts = async (userId: string) => {
+    setIsLoadingPosts(true);
+    setPostsError(null);
+    setPostsTitle("Your Recent Posts");
+    try {
+      const data = await profileApi.getUserPosts(userId, 1, 2);
+      setLatestPosts(data.posts);
+    } catch (err) {
+      console.error("Failed to load user posts", err);
+      setPostsError("Failed to load your posts.");
+    } finally {
+      setIsLoadingPosts(false);
+    }
+  };
 
   const loadLatestPosts = async () => {
     setIsLoadingPosts(true);
+    setPostsError(null);
+    setPostsTitle("Latest Posts");
     try {
       const data = await postApi.listRecent(2);
       setLatestPosts(data);
     } catch (err) {
       console.error("Failed to load latest posts", err);
+      setPostsError("Failed to load latest posts.");
     } finally {
       setIsLoadingPosts(false);
     }
@@ -75,7 +99,7 @@ export default function HomePage() {
       <section className="max-w-6xl mx-auto px-4 pb-16">
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Latest Posts</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{postsTitle}</h3>
             <Link href="/communities" className="text-sm text-blue-600 hover:text-blue-800">
               Explore communities
             </Link>
@@ -85,6 +109,8 @@ export default function HomePage() {
               <div className="h-16 bg-gray-100 rounded" />
               <div className="h-16 bg-gray-100 rounded" />
             </div>
+          ) : postsError ? (
+            <p className="text-sm text-red-600">{postsError}</p>
           ) : latestPosts.length === 0 ? (
             <p className="text-sm text-gray-500 italic">No posts yet.</p>
           ) : (

@@ -64,18 +64,9 @@ export default function UserProfilePage() {
 
   useEffect(() => {
     loadProfile();
+    loadMemberships();
+    loadPosts(1);
   }, [loadProfile]);
-
-  useEffect(() => {
-    if (activeTab === "overview") {
-      if (memberships.length === 0) {
-        loadMemberships();
-      }
-      if (posts.length === 0) {
-        loadPosts(1);
-      }
-    }
-  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab === "communities" && memberships.length === 0) {
