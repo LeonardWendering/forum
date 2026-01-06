@@ -2,7 +2,7 @@ import { IsString, IsBoolean, IsOptional, IsNumber, IsDateString, Min } from "cl
 
 export class CreateInviteCodeDto {
   @IsString()
-  subcommunityId: string;
+  subcommunityId!: string;
 
   @IsBoolean()
   @IsOptional()

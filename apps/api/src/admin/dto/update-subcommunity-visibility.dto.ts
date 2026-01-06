@@ -3,5 +3,5 @@ import { SubcommunityType } from "@prisma/client";
 
 export class UpdateSubcommunityVisibilityDto {
   @IsEnum(SubcommunityType)
-  type: SubcommunityType;
+  type!: SubcommunityType;
 }

@@ -7,7 +7,7 @@ import {
 import { PrismaService } from "../database/prisma.service";
 import { UserStatus, SubcommunityType } from "@prisma/client";
 import { CreateInviteCodeDto, UpdateUserStatusDto, UpdateSubcommunityVisibilityDto } from "./dto";
-import { generateSecureToken } from "../common/utils/token";
+import { generateToken } from "../common/utils/token";
 
 @Injectable()
 export class AdminService {
@@ -28,7 +28,7 @@ export class AdminService {
     }
 
     // Generate unique code
-    const code = generateSecureToken(8).toUpperCase();
+    const code = generateToken(8).toUpperCase();
 
     const inviteCode = await this.prisma.inviteCode.create({
       data: {
