@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
@@ -18,6 +18,33 @@ interface FormErrors {
 }
 
 export default function RegisterPage() {
+  return (
+    <Suspense fallback={<RegisterPageSkeleton />}>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterPageSkeleton() {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="h-8 bg-gray-200 rounded w-48 animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-32 mt-2 animate-pulse" />
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="space-y-1">
+            <div className="h-4 bg-gray-200 rounded w-20 animate-pulse" />
+            <div className="h-10 bg-gray-200 rounded animate-pulse" />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { register } = useAuth();
