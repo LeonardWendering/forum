@@ -65,7 +65,12 @@ export class AuthService {
     const displayName = dto.displayName.trim();
     const passwordHash = await argon2.hash(dto.password);
 
-    // Validate invite code if provided
+    // Invite code is REQUIRED for registration
+    if (!dto.inviteCode) {
+      throw new BadRequestException("An invite code is required to register");
+    }
+
+    // Validate invite code
     let inviteCode: {
       id: string;
       subcommunityId: string;

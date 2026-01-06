@@ -154,6 +154,10 @@ function RegisterForm() {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
+    if (!formData.inviteCode.trim()) {
+      newErrors.inviteCode = "Invite code is required";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -287,15 +291,16 @@ function RegisterForm() {
 
           <div>
             <FormField
-              label="Invite Code (optional)"
+              label="Invite Code"
               name="inviteCode"
               type="text"
-              placeholder="Enter invite code if you have one"
+              placeholder="Enter your invite code"
               value={formData.inviteCode}
               onChange={handleChange}
               error={errors.inviteCode}
               autoComplete="off"
               disabled={isSubmitting}
+              required
             />
             {isValidatingCode && (
               <div className="mt-2 flex items-center gap-2 text-sm text-gray-500">
@@ -354,7 +359,8 @@ function RegisterForm() {
               !formData.email ||
               !formData.displayName ||
               !formData.password ||
-              !formData.confirmPassword
+              !formData.confirmPassword ||
+              !formData.inviteCode
             }
           >
             Create account

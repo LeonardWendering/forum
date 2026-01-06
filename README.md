@@ -295,3 +295,236 @@ If Render logs show "No pending migrations to apply" but columns don't exist:
 ### Invite codes not working
 - Ensure `InviteCode` table exists (run migrations)
 - Check code hasn't expired or run out of uses
+
+---
+
+## Bot Automation System (Future Implementation)
+
+This section documents the planned implementation for automated bot posting, adapted from the Reddit automation system in `automated_posting/`.
+
+### Overview
+
+The bot system enables:
+- Creating private communities with random names for research studies
+- Creating bot accounts without email verification
+- Automated posting and replying on schedules
+- Orchestrating multiple communities with different bot configurations
+
+### Implementation Plan
+
+#### Phase 1: Backend API Extensions
+
+**1.1 Community Name Generator** (`apps/api/src/common/utils/community-name.ts`)
+```
+- Generate names like: "SunnyMeadow", "CozyHarbor", "MaplePond"
+- Format: [Adjective][Noun] or [Nature word][Place word]
+- Ensure uniqueness by checking existing slugs
+```
+
+**1.2 Admin Bot Creation Endpoint** (`POST /api/admin/bots`)
+```
+Request:
+{
+  "displayName": "string",           // or null to auto-generate
+  "subcommunityId": "string",        // community to join
+  "avatarConfig": {                  // optional, will randomize if not provided
+    "bodyType": "MALE" | "FEMALE" | "NEUTRAL" | "random",
+    "skinColor": "LIGHT" | "MEDIUM" | "DARK" | "random",
+    "hairstyle": "random" | specific value,
+    "accessory": "random" | specific value
+  },
+  "avatarRules": {                   // for batch creation
+    "bodyTypeDistribution": { "MALE": 50, "FEMALE": 50 },
+    "accessoryChance": 30            // % chance of having accessory
+  }
+}
+
+Response:
+{
+  "id": "user-id",
+  "displayName": "generated-name",
+  "accessToken": "jwt-token",        // bot's auth token
+  "refreshToken": "jwt-token"
+}
+```
+
+**1.3 Admin Batch Bot Creation** (`POST /api/admin/bots/batch`)
+```
+Request:
+{
+  "count": 10,
+  "subcommunityId": "string",
+  "avatarRules": { ... }
+}
+
+Response:
+{
+  "bots": [{ id, displayName, accessToken, refreshToken }, ...]
+}
+```
+
+**1.4 Admin Community Creation with Random Name** (`POST /api/admin/communities`)
+```
+Request:
+{
+  "nameStyle": "nature" | "cozy" | "friendly",  // name generation style
+  "type": "INVITE_ONLY",
+  "description": "string"
+}
+
+Response:
+{
+  "id": "community-id",
+  "name": "SunnyMeadow",
+  "slug": "sunny-meadow",
+  "inviteCode": "AUTO-GENERATED-CODE"
+}
+```
+
+#### Phase 2: Bot Posting Endpoints
+
+**2.1 Bot Thread Creation** (`POST /api/bot/threads`)
+```
+Headers: Authorization: Bearer <bot-access-token>
+Request:
+{
+  "subcommunitySlug": "string",
+  "title": "string",
+  "content": "string"
+}
+```
+
+**2.2 Bot Post/Reply** (`POST /api/bot/posts`)
+```
+Headers: Authorization: Bearer <bot-access-token>
+Request:
+{
+  "threadId": "string",
+  "content": "string",
+  "parentPostId": "string" | null    // for nested replies
+}
+```
+
+#### Phase 3: Python Orchestration Client
+
+**3.1 Forum API Client** (`automated_posting/src/forum_provider.py`)
+```python
+class ForumProvider:
+    def __init__(self, api_url: str, admin_token: str):
+        self.api_url = api_url
+        self.admin_token = admin_token
+        self.bot_tokens: Dict[str, str] = {}
+
+    def create_community(self, name_style: str) -> dict:
+        # POST /api/admin/communities
+
+    def create_bots(self, count: int, community_id: str, avatar_rules: dict) -> list:
+        # POST /api/admin/bots/batch
+
+    def submit_post(self, bot_id: str, subreddit: str, title: str,
+                    body: str, kind: str, parent_id: str = None) -> str:
+        # Uses bot's token to POST thread or reply
+```
+
+**3.2 Config Adaptations**
+
+`config/communities.yaml`:
+```yaml
+communities:
+  - name_style: nature
+    bot_count: 10
+    avatar_rules:
+      bodyTypeDistribution: { MALE: 40, FEMALE: 40, NEUTRAL: 20 }
+      accessoryChance: 25
+    active: true
+```
+
+`config/forum_app.yaml`:
+```yaml
+api_url: https://forum-api-xxx.onrender.com/api
+admin_email: admin@example.com
+admin_password: <from-env>
+timezone: Europe/Berlin
+sleep_between_posts_seconds: 3
+```
+
+#### Phase 4: Schedule Format
+
+Same CSV format as Reddit, with columns:
+```
+datetime,time,account,title,body,kind,reply_to,community
+```
+
+- `account`: Bot persona name (mapped to real bot via `state/account_mapping.json`)
+- `kind`: "self" (new thread) or "comment" (reply)
+- `reply_to`: Hierarchical reference (0, 1, 1.1, 2.1.1, etc.)
+- `community`: Target community slug (or uses default)
+
+#### Phase 5: Execution Flow
+
+1. **Setup Phase** (run once per study):
+   ```bash
+   python -m src.main --init-forum
+   ```
+   - Creates communities with random names
+   - Creates bot accounts with avatar distribution
+   - Generates invite codes
+   - Saves state to `state/forum_setup.json`
+
+2. **Posting Phase** (scheduled via Task Scheduler):
+   ```bash
+   python -m src.main run-once --platform forum
+   ```
+   - Loads schedule CSV
+   - Filters by current day per community
+   - Executes posts via Forum API
+   - Logs to `state/posted_log.jsonl`
+
+3. **Monitoring**:
+   ```bash
+   python -m src.main --status --platform forum
+   ```
+
+### Database Changes Needed
+
+```sql
+-- Add bot flag to User table
+ALTER TABLE "User" ADD COLUMN "is_bot" BOOLEAN NOT NULL DEFAULT false;
+
+-- Add created_by for bot accounts
+ALTER TABLE "User" ADD COLUMN "created_by_admin_id" TEXT;
+```
+
+### Security Considerations
+
+- Bot tokens should have limited scope (only post to assigned community)
+- Rate limiting on bot endpoints
+- Audit log for all bot actions
+- Admin-only access to bot management endpoints
+
+### Files to Create/Modify
+
+**Backend (apps/api/src/):**
+1. `common/utils/community-name.ts` - Name generator
+2. `admin/dto/create-bot.dto.ts` - Bot creation DTO
+3. `admin/dto/create-community.dto.ts` - Community creation DTO
+4. `admin/admin.controller.ts` - Add bot endpoints
+5. `admin/admin.service.ts` - Bot creation logic
+6. `auth/auth.service.ts` - Bot token generation (no email)
+
+**Python Client (automated_posting/src/):**
+1. `forum_provider.py` - Forum API client
+2. `forum_main.py` - Forum-specific entry point
+3. Modify `main.py` - Add `--platform forum` flag
+
+**Migrations:**
+1. `prisma/migrations/YYYYMMDD_add_bot_fields/migration.sql`
+
+### Estimated Implementation Order
+
+1. Community name generator + admin community endpoint
+2. Bot user creation endpoint (single + batch)
+3. Bot posting endpoints
+4. Python Forum provider class
+5. Integration with existing schedule system
+6. Testing with sample community + bots
