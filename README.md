@@ -147,9 +147,13 @@ forum_code/
 ### Render (API)
 
 **Service Configuration:**
-- Root directory: `apps/api`
-- Build command: `npm run render-build`
-- Start command: `cd ../.. && npx prisma migrate deploy && cd apps/api && npm start`
+| Setting | Value |
+|---------|-------|
+| Root Directory | `apps/api` |
+| Build Command | `npm run render-build` |
+| Start Command | `cd ../.. && npx prisma migrate deploy && cd apps/api && npm start` |
+
+The start command navigates to the project root to run Prisma migrations (since `prisma/` is at root level), then returns to `apps/api` to start the server.
 
 **Environment Variables:**
 ```
