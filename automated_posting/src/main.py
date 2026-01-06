@@ -5,6 +5,7 @@ Forum Bot Automation - Main Entry Point
 Usage:
     python -m src.main --init-forum       # Initialize communities and bots
     python -m src.main run-once           # Run scheduled posts for today
+    python -m src.main watch              # Watch mode: check every minute, post when due
     python -m src.main --status           # Show current status
 """
 
@@ -13,6 +14,7 @@ import csv
 import json
 import logging
 import os
+import random
 import sys
 from datetime import datetime, date
 from pathlib import Path
@@ -131,6 +133,10 @@ def init_forum(provider: ForumProvider, config: Dict) -> None:
             avatar_rules=avatar_rules
         )
 
+        # Initialize bot_tokens if not present
+        if "bot_tokens" not in state:
+            state["bot_tokens"] = {}
+
         for j, bot in enumerate(bots):
             bot_key = f"{comm_key}_bot_{j}"
             state["bots"][bot_key] = {
@@ -142,6 +148,9 @@ def init_forum(provider: ForumProvider, config: Dict) -> None:
             }
             # Map persona names to bot IDs (for schedule CSV)
             state["account_mapping"][bot.display_name] = bot.id
+            # Store bot tokens for posting
+            if bot.access_token:
+                state["bot_tokens"][bot.id] = bot.access_token
 
         save_state(state)
         logger.info(f"Created {len(bots)} bots")
@@ -284,6 +293,184 @@ def run_schedule(provider: ForumProvider, config: Dict, schedule_file: str) -> N
     logger.info("Schedule run complete!")
 
 
+def load_schedule_rows(schedule_file: str) -> List[Dict]:
+    """Load all rows from a schedule CSV file"""
+    schedule_path = SCHEDULES_DIR / schedule_file
+    if not schedule_path.exists():
+        logger.error(f"Schedule file not found: {schedule_path}")
+        return []
+
+    rows = []
+    with open(schedule_path, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            rows.append(row)
+    return rows
+
+
+def run_watch(provider: ForumProvider, config: Dict, schedule_file: str) -> None:
+    """
+    Watch mode: continuously check for scheduled posts and execute them.
+
+    Runs every minute, checks for posts due at the current time,
+    executes them in random order with random delays (2-7 seconds).
+    """
+    logger.info(f"Starting watch mode for schedule: {schedule_file}")
+    logger.info("Press Ctrl+C to stop")
+    provider.login()
+
+    state = load_state()
+    if not state.get("bots"):
+        logger.error("No bots found. Run --init-forum first.")
+        return
+
+    # Track which posts have been executed (by row index + date/time)
+    executed_posts = set()
+
+    # Track created posts for reply_to references (persists across minutes)
+    post_refs: Dict[str, str] = {}
+
+    try:
+        while True:
+            now = datetime.now()
+            current_date = now.strftime("%Y-%m-%d")
+            current_time = now.strftime("%H:%M")
+
+            logger.info(f"[{current_date} {current_time}] Checking for scheduled posts...")
+
+            # Load schedule fresh each time (allows live updates)
+            rows = load_schedule_rows(schedule_file)
+
+            # Find posts due now
+            due_posts = []
+            for idx, row in enumerate(rows):
+                row_date = row.get("datetime", "").strip()
+                row_time = row.get("time", "").strip()
+
+                # Check if this post is due now and hasn't been executed
+                post_key = f"{idx}:{row_date}:{row_time}"
+                if row_date == current_date and row_time == current_time and post_key not in executed_posts:
+                    due_posts.append((idx, row, post_key))
+
+            if due_posts:
+                logger.info(f"Found {len(due_posts)} posts to execute")
+
+                # Randomize order
+                random.shuffle(due_posts)
+
+                for idx, row, post_key in due_posts:
+                    account_name = row.get("account", "").strip()
+                    title = row.get("title", "").strip()
+                    body = row.get("body", "").strip()
+                    kind = row.get("kind", "self").strip()
+                    reply_to = row.get("reply_to", "").strip()
+                    community_slug = row.get("community", "").strip()
+
+                    # Map account name to bot ID
+                    bot_id = state.get("account_mapping", {}).get(account_name)
+                    if not bot_id:
+                        logger.warning(f"Unknown account: {account_name}, skipping...")
+                        executed_posts.add(post_key)
+                        continue
+
+                    # Get bot token
+                    bot_token = state.get("bot_tokens", {}).get(bot_id)
+                    if not bot_token:
+                        logger.warning(f"No token for bot {account_name}, skipping...")
+                        executed_posts.add(post_key)
+                        continue
+
+                    provider.set_bot_token(bot_id, bot_token)
+
+                    # Get community slug from bot if not specified
+                    if not community_slug:
+                        for bot_key, bot_info in state["bots"].items():
+                            if bot_info.get("id") == bot_id:
+                                community_slug = bot_info.get("community_slug")
+                                break
+
+                    try:
+                        if kind == "self":
+                            # Create new thread
+                            result = provider.submit_thread(
+                                bot_id=bot_id,
+                                subcommunity_slug=community_slug,
+                                title=title,
+                                content=body
+                            )
+                            logger.info(f"Created thread: {title[:50]}... by {account_name}")
+
+                            # Store reference for replies using row index
+                            ref_key = str(idx)
+                            post_refs[ref_key] = result["threadId"]
+
+                            log_post({
+                                "timestamp": datetime.now().isoformat(),
+                                "type": "thread",
+                                "account": account_name,
+                                "thread_id": result["threadId"],
+                                "post_id": result["postId"]
+                            })
+
+                        elif kind == "comment":
+                            # Create reply
+                            # Parse reply_to to get thread reference
+                            thread_ref = reply_to.split(".")[0]
+                            thread_id = post_refs.get(thread_ref)
+                            parent_id = post_refs.get(reply_to) if "." in reply_to else None
+
+                            if not thread_id:
+                                logger.warning(f"Invalid reply_to reference: {reply_to} (thread not found)")
+                                executed_posts.add(post_key)
+                                continue
+
+                            result = provider.submit_reply(
+                                bot_id=bot_id,
+                                thread_id=thread_id,
+                                content=body,
+                                parent_post_id=parent_id
+                            )
+                            logger.info(f"Created reply by {account_name}")
+
+                            # Store reference
+                            post_refs[reply_to] = result["postId"]
+
+                            log_post({
+                                "timestamp": datetime.now().isoformat(),
+                                "type": "comment",
+                                "account": account_name,
+                                "thread_id": thread_id,
+                                "post_id": result["postId"],
+                                "parent_id": parent_id
+                            })
+
+                        executed_posts.add(post_key)
+
+                        # Random delay 2-7 seconds between posts
+                        if len(due_posts) > 1:
+                            delay = random.uniform(2, 7)
+                            logger.info(f"Waiting {delay:.1f}s before next post...")
+                            time.sleep(delay)
+
+                    except ForumProviderError as e:
+                        logger.error(f"Failed to post: {e}")
+                        executed_posts.add(post_key)
+                        continue
+
+            else:
+                logger.info("No posts due at this time")
+
+            # Wait until the next minute
+            now = datetime.now()
+            seconds_until_next_minute = 60 - now.second
+            logger.info(f"Sleeping {seconds_until_next_minute}s until next check...")
+            time.sleep(seconds_until_next_minute)
+
+    except KeyboardInterrupt:
+        logger.info("\nWatch mode stopped by user")
+        logger.info(f"Total posts executed this session: {len(executed_posts)}")
+
+
 def show_status() -> None:
     """Show current forum setup status"""
     state = load_state()
@@ -330,7 +517,7 @@ def main():
     parser = argparse.ArgumentParser(description="Forum Bot Automation")
     parser.add_argument("--init-forum", action="store_true", help="Initialize communities and bots")
     parser.add_argument("--status", action="store_true", help="Show current status")
-    parser.add_argument("command", nargs="?", help="Command to run (run-once)")
+    parser.add_argument("command", nargs="?", help="Command to run (run-once, watch)")
     parser.add_argument("--schedule", default="schedule.csv", help="Schedule file name")
     parser.add_argument("--config", default="forum_app", help="Config file name (without .yaml)")
 
@@ -360,6 +547,9 @@ def main():
 
     elif args.command == "run-once":
         run_schedule(provider, config, args.schedule)
+
+    elif args.command == "watch":
+        run_watch(provider, config, args.schedule)
 
     else:
         parser.print_help()

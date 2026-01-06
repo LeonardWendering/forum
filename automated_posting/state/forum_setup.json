@@ -1,0 +1,55 @@
+{
+  "communities": {
+    "community_0": {
+      "id": "cmk2xb3vc0002a4g77u002ufu",
+      "name": "BirchFields",
+      "slug": "birch-fields",
+      "invite_code": "D5LSW4BB",
+      "password": null
+    }
+  },
+  "bots": {
+    "community_0_bot_0": {
+      "id": "cmk2xb4zk0009a4g7jqh2dj0d",
+      "display_name": "LivelyRiver",
+      "email": "bot_uEV10g8L5TMT@bot.local",
+      "community_id": "cmk2xb3vc0002a4g77u002ufu",
+      "community_slug": "birch-fields"
+    },
+    "community_0_bot_1": {
+      "id": "cmk2xb67q000ea4g79tiwrhh0",
+      "display_name": "LivelyPebble",
+      "email": "bot_GdUgpO6m3dAR@bot.local",
+      "community_id": "cmk2xb3vc0002a4g77u002ufu",
+      "community_slug": "birch-fields"
+    },
+    "community_0_bot_2": {
+      "id": "cmk2xb7df000ja4g78v8kdccm",
+      "display_name": "JollyBirch",
+      "email": "bot_YQEgYY93QP9S@bot.local",
+      "community_id": "cmk2xb3vc0002a4g77u002ufu",
+      "community_slug": "birch-fields"
+    },
+    "community_0_bot_3": {
+      "id": "cmk2xb8j4000oa4g79ddkbdfi",
+      "display_name": "GentleOak",
+      "email": "bot_J9QTdA7-2i2C@bot.local",
+      "community_id": "cmk2xb3vc0002a4g77u002ufu",
+      "community_slug": "birch-fields"
+    },
+    "community_0_bot_4": {
+      "id": "cmk2xb9op000ta4g7hkv7zv2a",
+      "display_name": "HappyStone",
+      "email": "bot_K3ok1CTAVTpg@bot.local",
+      "community_id": "cmk2xb3vc0002a4g77u002ufu",
+      "community_slug": "birch-fields"
+    }
+  },
+  "account_mapping": {
+    "LivelyRiver": "cmk2xb4zk0009a4g7jqh2dj0d",
+    "LivelyPebble": "cmk2xb67q000ea4g79tiwrhh0",
+    "JollyBirch": "cmk2xb7df000ja4g78v8kdccm",
+    "GentleOak": "cmk2xb8j4000oa4g79ddkbdfi",
+    "HappyStone": "cmk2xb9op000ta4g7hkv7zv2a"
+  }
+}

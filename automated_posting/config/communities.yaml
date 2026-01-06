@@ -4,16 +4,16 @@
 communities:
   # Example community 1: Nature-themed names
   - active: true
-    name_style: "nature"  # Generates names like "SunnyMeadow", "QuietPond"
+    name_style: "nature"
     type: "INVITE_ONLY"
-    description: "A private discussion community"
-    bot_count: 10
+    description: "Test community for bot automation"
+    bot_count: 5
     avatar_rules:
       body_type_distribution:
         MALE: 40
         FEMALE: 40
         NEUTRAL: 20
-      accessory_chance: 30  # 30% of bots get accessories
+      accessory_chance: 30
 
   # Example community 2: Friendly-themed names
   - active: false  # Set to true to enable

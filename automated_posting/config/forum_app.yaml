@@ -2,11 +2,11 @@
 # Copy this file to forum_app.yaml and customize for your environment
 
 # API endpoint base URL
-api_url: "http://localhost:3000/api"
+api_url: "https://forum-api-kkg0.onrender.com/api"
 
 # Admin credentials for bot management
 # The password should be set via FORUM_ADMIN_PASSWORD environment variable
-admin_email: "admin@example.com"
+admin_email: "leo.wendering@gmail.com"
 admin_password: ""  # Set via FORUM_ADMIN_PASSWORD env var for security
 
 # Posting behavior

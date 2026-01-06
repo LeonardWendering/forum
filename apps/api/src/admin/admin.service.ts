@@ -4,6 +4,8 @@ import {
   BadRequestException,
   ForbiddenException
 } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../database/prisma.service";
 import {
   UserStatus,
@@ -31,7 +33,31 @@ import * as argon2 from "argon2";
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  private readonly accessSecret: string;
+  private readonly accessTtl: string;
+
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService,
+    private configService: ConfigService
+  ) {
+    this.accessSecret = this.configService.getOrThrow<string>("JWT_ACCESS_TOKEN_SECRET");
+    this.accessTtl = this.configService.get<string>("JWT_ACCESS_TOKEN_TTL", "15m");
+  }
+
+  private async generateBotToken(userId: string, role: string): Promise<string> {
+    return this.jwtService.signAsync(
+      {
+        sub: userId,
+        role: role,
+        isBot: true
+      },
+      {
+        secret: this.accessSecret,
+        expiresIn: "365d" // Long-lived token for bots
+      }
+    );
+  }
 
   // ============================================
   // Invite Code Management
@@ -615,10 +641,14 @@ export class AdminService {
         return user;
       });
 
+      // Generate access token for the bot
+      const accessToken = await this.generateBotToken(bot.id, bot.role);
+
       bots.push({
         id: bot.id,
         displayName: bot.displayName,
         email: bot.email,
+        accessToken,
         avatar: {
           avatarBodyType: avatarConfig.bodyType,
           avatarSkinColor: avatarConfig.skinColor,

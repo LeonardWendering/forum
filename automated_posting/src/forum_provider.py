@@ -245,7 +245,9 @@ class ForumProvider:
             BotAccount(
                 id=bot["id"],
                 display_name=bot["displayName"],
-                email=bot["email"]
+                email=bot["email"],
+                access_token=bot.get("accessToken"),
+                refresh_token=bot.get("refreshToken")
             )
             for bot in response["bots"]
         ]
