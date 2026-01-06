@@ -72,17 +72,9 @@ export function Header() {
               )}
               <Link
                 href={`/u/${user.id}`}
-                className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
+                className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
               >
                 Profile
-              </Link>
-              <Link
-                href={`/u/${user.id}`}
-                className="hidden sm:flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors"
-                title="Go to your profile"
-              >
-                <span>Welcome,</span>
-                <span className="font-medium text-gray-900">{user.displayName}</span>
                 {isAdmin && (
                   <span className="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded font-medium">
                     Admin

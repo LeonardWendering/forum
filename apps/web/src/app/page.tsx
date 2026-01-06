@@ -83,15 +83,20 @@ export default function HomePage() {
           </div>
         )}
 
-        {isAuthenticated && (
-          <div className="flex items-center justify-center gap-4">
-            <Link href="/communities">
-              <Button size="lg">Browse Communities</Button>
-            </Link>
-            <Link href="/messages">
-              <Button variant="outline" size="lg">Messages</Button>
-            </Link>
-          </div>
+        {isAuthenticated && user && (
+          <>
+            <p className="text-lg text-blue-600 font-medium mb-6">
+              Welcome back, {user.displayName}!
+            </p>
+            <div className="flex items-center justify-center gap-4">
+              <Link href="/communities">
+                <Button size="lg">Browse Communities</Button>
+              </Link>
+              <Link href="/messages">
+                <Button variant="outline" size="lg">Messages</Button>
+              </Link>
+            </div>
+          </>
         )}
       </section>
 

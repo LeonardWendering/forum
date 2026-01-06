@@ -242,6 +242,26 @@ pnpm prisma:generate
 - Schema: `prisma/schema.prisma`
 - After schema changes, create a migration file in `prisma/migrations/`
 
+### Styling Guidelines
+
+**Color Scheme:**
+- Primary color: Blue (`blue-600` for buttons, `blue-100` for backgrounds)
+- All buttons should use blue variants, never grey
+- Admin elements use purple (`purple-600`)
+- Danger/destructive actions use red (`red-600`)
+
+**Button Variants:**
+- `primary`: Solid blue background, white text
+- `secondary`: Light blue background, blue text
+- `outline`: Blue border, blue text, light blue hover
+- `ghost`: Blue text, light blue hover background
+- `danger`: Red background for destructive actions
+
+**UI Consistency:**
+- "Welcome, username" message appears only on the landing page
+- Header shows single "Profile" link (not duplicate username link)
+- Admin/Restricted badges appear next to Profile link in header
+
 ## Promoting a User to Admin
 
 Use Supabase SQL Editor:
