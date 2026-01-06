@@ -528,3 +528,46 @@ ALTER TABLE "User" ADD COLUMN "created_by_admin_id" TEXT;
 4. Python Forum provider class
 5. Integration with existing schedule system
 6. Testing with sample community + bots
+
+### Future Enhancements
+
+#### Server Deployment Options
+
+The `automated_posting/` folder is self-contained and can be deployed independently. Consider:
+
+1. **Docker Deployment** (Recommended)
+   - Add `Dockerfile` and `docker-compose.yml` to `automated_posting/`
+   - Deploy container to any cloud provider (AWS ECS, DigitalOcean, Railway, etc.)
+   - Use cron job inside container or external scheduler
+
+2. **Dedicated VM/VPS**
+   - Copy `automated_posting/` folder to server
+   - Set up Python virtual environment
+   - Configure systemd timer or cron for scheduled runs
+
+3. **Serverless (AWS Lambda / Cloud Functions)**
+   - Package as Lambda function
+   - Use CloudWatch Events or Cloud Scheduler for triggers
+   - Good for infrequent posting schedules
+
+4. **GitHub Actions / CI Pipeline**
+   - Run `python -m src.main run-once` as scheduled workflow
+   - Free tier available, good for daily runs
+
+**Files to add for Docker support:**
+```
+automated_posting/
+├── Dockerfile
+├── docker-compose.yml
+├── .dockerignore
+└── scripts/
+    └── entrypoint.sh      # Handles cron setup inside container
+```
+
+#### Additional Features to Consider
+
+- **Web Dashboard**: Simple Flask/FastAPI UI for viewing bot status and triggering runs
+- **Webhook Notifications**: Slack/Discord alerts on posting errors
+- **Database Backend**: Replace JSON state files with SQLite/PostgreSQL for reliability
+- **Retry Logic**: Automatic retry with exponential backoff for failed posts
+- **Dry-Run Mode**: Preview what would be posted without actually posting

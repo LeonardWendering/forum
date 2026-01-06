@@ -580,7 +580,8 @@ export class AuthService {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       isRestricted: user.isRestricted,
-      restrictedToSubcommunityId: user.restrictedToSubcommunityId
+      restrictedToSubcommunityId: user.restrictedToSubcommunityId,
+      isBot: user.isBot
     };
   }
 

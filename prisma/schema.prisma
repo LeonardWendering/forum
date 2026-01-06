@@ -41,6 +41,12 @@ model User {
   restrictedToSubcommunityId String?  @map("restricted_to_subcommunity_id")
   registeredWithInviteId     String?  @map("registered_with_invite_id")
 
+  // Bot account fields
+  isBot              Boolean  @default(false) @map("is_bot")
+  createdByAdminId   String?  @map("created_by_admin_id")
+  createdByAdmin     User?    @relation("BotCreator", fields: [createdByAdminId], references: [id])
+  createdBots        User[]   @relation("BotCreator")
+
   profile               Profile?
   verificationTokens    EmailVerificationToken[]
   passwordResetTokens   PasswordResetToken[]

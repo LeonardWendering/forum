@@ -98,14 +98,12 @@ export class ThreadsService {
 
     const isMember = !!(userId && subcommunity.memberships?.length);
 
-    // Check membership for password-protected subcommunities
-    if (subcommunity.type === SubcommunityType.PASSWORD_PROTECTED && !isMember) {
-      throw new ForbiddenException("You must join this subcommunity to view threads");
-    }
-
-    // Check membership for invite-only subcommunities
-    if (subcommunity.type === SubcommunityType.INVITE_ONLY && !isMember) {
-      throw new ForbiddenException("This subcommunity is invite-only");
+    // Hide private communities from non-members (return 404 to not reveal existence)
+    if (!isMember) {
+      if (subcommunity.type === SubcommunityType.INVITE_ONLY ||
+          subcommunity.type === SubcommunityType.PASSWORD_PROTECTED) {
+        throw new NotFoundException("Subcommunity not found");
+      }
     }
 
     const skip = (page - 1) * limit;
@@ -194,7 +192,8 @@ export class ThreadsService {
           select: {
             id: true,
             name: true,
-            slug: true
+            slug: true,
+            type: true
           }
         },
         _count: {
@@ -211,11 +210,31 @@ export class ThreadsService {
       throw new NotFoundException("Thread not found");
     }
 
+    // Check private community access - hide threads in private communities from non-members
+    if (thread.subcommunity.type !== SubcommunityType.PUBLIC) {
+      const membership = userId ? await this.prisma.membership.findUnique({
+        where: {
+          userId_subcommunityId: {
+            userId,
+            subcommunityId: thread.subcommunity.id
+          }
+        }
+      }) : null;
+
+      if (!membership) {
+        throw new NotFoundException("Thread not found");
+      }
+    }
+
     return {
       id: thread.id,
       title: thread.title,
       author: thread.author,
-      subcommunity: thread.subcommunity,
+      subcommunity: {
+        id: thread.subcommunity.id,
+        name: thread.subcommunity.name,
+        slug: thread.subcommunity.slug
+      },
       isMuted: thread.isMuted,
       isPinned: thread.isPinned,
       isLocked: thread.isLocked,

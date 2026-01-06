@@ -9,7 +9,7 @@ export interface AuthTokens {
 
 export type PublicUser = Pick<
   User,
-  "id" | "email" | "displayName" | "role" | "status" | "emailVerifiedAt" | "createdAt" | "updatedAt" | "isRestricted" | "restrictedToSubcommunityId"
+  "id" | "email" | "displayName" | "role" | "status" | "emailVerifiedAt" | "createdAt" | "updatedAt" | "isRestricted" | "restrictedToSubcommunityId" | "isBot"
 >;
 
 export interface AuthPayload {

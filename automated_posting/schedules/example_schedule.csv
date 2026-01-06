@@ -1,0 +1,6 @@
+datetime,time,account,title,body,kind,reply_to,community
+2026-01-06,09:00,SunnyMeadow,Welcome to our community!,Hello everyone! I'm excited to start this discussion. What topics would you like to explore?,self,,sunny-meadow
+2026-01-06,09:15,QuietPond,,I think we should discuss technology trends. What do you all think?,comment,0,sunny-meadow
+2026-01-06,09:30,HappyBrook,,Great idea! I'm particularly interested in AI developments.,comment,0.1,sunny-meadow
+2026-01-06,10:00,GentleRiver,Best practices for remote work,I've been working remotely for a year now. Here are some tips I've learned...,self,,sunny-meadow
+2026-01-06,10:15,SunnyMeadow,,Thanks for sharing! I especially agree with your point about setting boundaries.,comment,1,sunny-meadow

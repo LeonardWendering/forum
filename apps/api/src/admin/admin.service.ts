@@ -5,9 +5,29 @@ import {
   ForbiddenException
 } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
-import { UserStatus, SubcommunityType } from "@prisma/client";
-import { CreateInviteCodeDto, UpdateUserStatusDto, UpdateSubcommunityVisibilityDto } from "./dto";
+import {
+  UserStatus,
+  SubcommunityType,
+  AvatarBodyType,
+  AvatarSkinColor,
+  AvatarHairstyle,
+  AvatarAccessory
+} from "@prisma/client";
+import {
+  CreateInviteCodeDto,
+  UpdateUserStatusDto,
+  UpdateSubcommunityVisibilityDto,
+  CreateBotDto,
+  CreateBotBatchDto,
+  CreateAdminCommunityDto
+} from "./dto";
 import { generateToken } from "../common/utils/token";
+import {
+  generateUniqueCommunityName,
+  generateUniqueBotName,
+  nameToSlug
+} from "../common/utils/community-name";
+import * as argon2 from "argon2";
 
 @Injectable()
 export class AdminService {
@@ -442,5 +462,357 @@ export class AdminService {
     });
 
     return { message: "Post unmuted successfully" };
+  }
+
+  // ============================================
+  // Bot Management
+  // ============================================
+
+  /**
+   * Create a single bot account
+   */
+  async createBot(dto: CreateBotDto, adminId: string) {
+    // Verify subcommunity exists
+    const subcommunity = await this.prisma.subcommunity.findUnique({
+      where: { id: dto.subcommunityId }
+    });
+
+    if (!subcommunity) {
+      throw new NotFoundException("Subcommunity not found");
+    }
+
+    // Generate display name if not provided
+    const displayName = dto.displayName || await generateUniqueBotName(
+      async (name) => {
+        const existing = await this.prisma.user.findFirst({
+          where: { displayName: name }
+        });
+        return !!existing;
+      }
+    );
+
+    // Generate a random password for the bot (not used for login, but required by schema)
+    const randomPassword = generateToken(32);
+    const passwordHash = await argon2.hash(randomPassword);
+
+    // Generate unique email for bot (required by schema, but not used)
+    const botEmail = `bot_${generateToken(12)}@bot.local`;
+
+    // Determine avatar configuration
+    const avatarConfig = this.resolveAvatarConfig(dto.avatarConfig);
+
+    // Create bot user with profile and membership in a transaction
+    const bot = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email: botEmail,
+          passwordHash,
+          displayName,
+          isBot: true,
+          createdByAdminId: adminId,
+          emailVerifiedAt: new Date(), // Auto-verified
+          profile: {
+            create: {
+              avatarBodyType: avatarConfig.bodyType,
+              avatarSkinColor: avatarConfig.skinColor,
+              avatarHairstyle: avatarConfig.hairstyle,
+              avatarAccessory: avatarConfig.accessory
+            }
+          }
+        }
+      });
+
+      // Add bot to subcommunity
+      await tx.membership.create({
+        data: {
+          userId: user.id,
+          subcommunityId: dto.subcommunityId,
+          role: "member"
+        }
+      });
+
+      return user;
+    });
+
+    return {
+      id: bot.id,
+      displayName: bot.displayName,
+      email: bot.email,
+      isBot: bot.isBot,
+      subcommunityId: dto.subcommunityId,
+      avatar: {
+        avatarBodyType: avatarConfig.bodyType,
+        avatarSkinColor: avatarConfig.skinColor,
+        avatarHairstyle: avatarConfig.hairstyle,
+        avatarAccessory: avatarConfig.accessory
+      }
+    };
+  }
+
+  /**
+   * Create multiple bot accounts at once
+   */
+  async createBotBatch(dto: CreateBotBatchDto, adminId: string) {
+    // Verify subcommunity exists
+    const subcommunity = await this.prisma.subcommunity.findUnique({
+      where: { id: dto.subcommunityId }
+    });
+
+    if (!subcommunity) {
+      throw new NotFoundException("Subcommunity not found");
+    }
+
+    const bots = [];
+
+    for (let i = 0; i < dto.count; i++) {
+      // Generate unique display name
+      const displayName = await generateUniqueBotName(
+        async (name) => {
+          const existing = await this.prisma.user.findFirst({
+            where: { displayName: name }
+          });
+          return !!existing;
+        }
+      );
+
+      // Generate random password and email
+      const randomPassword = generateToken(32);
+      const passwordHash = await argon2.hash(randomPassword);
+      const botEmail = `bot_${generateToken(12)}@bot.local`;
+
+      // Determine avatar based on rules
+      const avatarConfig = this.resolveAvatarFromRules(dto.avatarRules);
+
+      // Create bot
+      const bot = await this.prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email: botEmail,
+            passwordHash,
+            displayName,
+            isBot: true,
+            createdByAdminId: adminId,
+            emailVerifiedAt: new Date(),
+            profile: {
+              create: {
+                avatarBodyType: avatarConfig.bodyType,
+                avatarSkinColor: avatarConfig.skinColor,
+                avatarHairstyle: avatarConfig.hairstyle,
+                avatarAccessory: avatarConfig.accessory
+              }
+            }
+          }
+        });
+
+        await tx.membership.create({
+          data: {
+            userId: user.id,
+            subcommunityId: dto.subcommunityId,
+            role: "member"
+          }
+        });
+
+        return user;
+      });
+
+      bots.push({
+        id: bot.id,
+        displayName: bot.displayName,
+        email: bot.email,
+        avatar: {
+          avatarBodyType: avatarConfig.bodyType,
+          avatarSkinColor: avatarConfig.skinColor,
+          avatarHairstyle: avatarConfig.hairstyle,
+          avatarAccessory: avatarConfig.accessory
+        }
+      });
+    }
+
+    return {
+      count: bots.length,
+      subcommunityId: dto.subcommunityId,
+      bots
+    };
+  }
+
+  /**
+   * Create a community with auto-generated name
+   */
+  async createCommunityWithRandomName(dto: CreateAdminCommunityDto, adminId: string) {
+    // Generate unique community name
+    const { name, slug } = await generateUniqueCommunityName(
+      async (s) => {
+        const existing = await this.prisma.subcommunity.findUnique({
+          where: { slug: s }
+        });
+        return !!existing;
+      }
+    );
+
+    // Hash password if type is PASSWORD_PROTECTED
+    let hashedPassword = null;
+    let plainPassword = null;
+    if (dto.type === SubcommunityType.PASSWORD_PROTECTED) {
+      plainPassword = generateToken(12);
+      hashedPassword = await argon2.hash(plainPassword);
+    }
+
+    // Create subcommunity with invite code in a transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      const subcommunity = await tx.subcommunity.create({
+        data: {
+          name,
+          slug,
+          description: dto.description || `Welcome to ${name}`,
+          type: dto.type,
+          password: hashedPassword,
+          createdById: adminId
+        }
+      });
+
+      // Create admin as moderator
+      await tx.membership.create({
+        data: {
+          userId: adminId,
+          subcommunityId: subcommunity.id,
+          role: "moderator"
+        }
+      });
+
+      // Create invite code for the community
+      const inviteCode = await tx.inviteCode.create({
+        data: {
+          code: generateToken(8).toUpperCase(),
+          subcommunityId: subcommunity.id,
+          isRestricted: false,
+          createdById: adminId
+        }
+      });
+
+      return { subcommunity, inviteCode };
+    });
+
+    return {
+      id: result.subcommunity.id,
+      name: result.subcommunity.name,
+      slug: result.subcommunity.slug,
+      type: result.subcommunity.type,
+      description: result.subcommunity.description,
+      inviteCode: result.inviteCode.code,
+      ...(plainPassword && { password: plainPassword })
+    };
+  }
+
+  // ============================================
+  // Helper Methods
+  // ============================================
+
+  private resolveAvatarConfig(config?: {
+    bodyType?: string;
+    skinColor?: string;
+    hairstyle?: string;
+    accessory?: string;
+  }) {
+    const bodyTypes: AvatarBodyType[] = [
+      AvatarBodyType.MALE,
+      AvatarBodyType.FEMALE,
+      AvatarBodyType.NEUTRAL
+    ];
+    const skinColors: AvatarSkinColor[] = [
+      AvatarSkinColor.LIGHT,
+      AvatarSkinColor.MEDIUM,
+      AvatarSkinColor.DARK
+    ];
+    const hairstyles: AvatarHairstyle[] = [
+      AvatarHairstyle.MALE_SHORT,
+      AvatarHairstyle.MALE_SPIKY,
+      AvatarHairstyle.NEUTRAL_BOB,
+      AvatarHairstyle.NEUTRAL_CURLY,
+      AvatarHairstyle.FEMALE_LONG,
+      AvatarHairstyle.FEMALE_PONYTAIL
+    ];
+    const accessories: AvatarAccessory[] = [
+      AvatarAccessory.NONE,
+      AvatarAccessory.EARRING,
+      AvatarAccessory.SUNGLASSES,
+      AvatarAccessory.PARROT
+    ];
+
+    return {
+      bodyType: config?.bodyType === "random" || !config?.bodyType
+        ? bodyTypes[Math.floor(Math.random() * bodyTypes.length)]
+        : config.bodyType as AvatarBodyType,
+      skinColor: config?.skinColor === "random" || !config?.skinColor
+        ? skinColors[Math.floor(Math.random() * skinColors.length)]
+        : config.skinColor as AvatarSkinColor,
+      hairstyle: config?.hairstyle === "random" || !config?.hairstyle
+        ? hairstyles[Math.floor(Math.random() * hairstyles.length)]
+        : config.hairstyle as AvatarHairstyle,
+      accessory: config?.accessory === "random" || !config?.accessory
+        ? (Math.random() > 0.7
+            ? accessories[Math.floor(Math.random() * (accessories.length - 1)) + 1]
+            : AvatarAccessory.NONE)
+        : config.accessory as AvatarAccessory
+    };
+  }
+
+  private resolveAvatarFromRules(rules?: {
+    bodyTypeDistribution?: { MALE: number; FEMALE: number; NEUTRAL: number };
+    accessoryChance?: number;
+  }) {
+    const skinColors: AvatarSkinColor[] = [
+      AvatarSkinColor.LIGHT,
+      AvatarSkinColor.MEDIUM,
+      AvatarSkinColor.DARK
+    ];
+    const hairstyles: AvatarHairstyle[] = [
+      AvatarHairstyle.MALE_SHORT,
+      AvatarHairstyle.MALE_SPIKY,
+      AvatarHairstyle.NEUTRAL_BOB,
+      AvatarHairstyle.NEUTRAL_CURLY,
+      AvatarHairstyle.FEMALE_LONG,
+      AvatarHairstyle.FEMALE_PONYTAIL
+    ];
+    const accessoriesWithItems: AvatarAccessory[] = [
+      AvatarAccessory.EARRING,
+      AvatarAccessory.SUNGLASSES,
+      AvatarAccessory.PARROT
+    ];
+
+    // Determine body type based on distribution
+    let bodyType: AvatarBodyType;
+    if (rules?.bodyTypeDistribution) {
+      const { MALE, FEMALE, NEUTRAL } = rules.bodyTypeDistribution;
+      const total = MALE + FEMALE + NEUTRAL;
+      const rand = Math.random() * total;
+      if (rand < MALE) {
+        bodyType = AvatarBodyType.MALE;
+      } else if (rand < MALE + FEMALE) {
+        bodyType = AvatarBodyType.FEMALE;
+      } else {
+        bodyType = AvatarBodyType.NEUTRAL;
+      }
+    } else {
+      const bodyTypes: AvatarBodyType[] = [
+        AvatarBodyType.MALE,
+        AvatarBodyType.FEMALE,
+        AvatarBodyType.NEUTRAL
+      ];
+      bodyType = bodyTypes[Math.floor(Math.random() * bodyTypes.length)];
+    }
+
+    // Determine accessory based on chance
+    const accessoryChance = rules?.accessoryChance ?? 30;
+    const hasAccessory = Math.random() * 100 < accessoryChance;
+    const accessory = hasAccessory
+      ? accessoriesWithItems[Math.floor(Math.random() * accessoriesWithItems.length)]
+      : AvatarAccessory.NONE;
+
+    return {
+      bodyType,
+      skinColor: skinColors[Math.floor(Math.random() * skinColors.length)],
+      hairstyle: hairstyles[Math.floor(Math.random() * hairstyles.length)],
+      accessory
+    };
   }
 }

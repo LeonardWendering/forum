@@ -114,7 +114,9 @@ export class SubcommunitiesService {
         ...(userRole !== UserRole.ADMIN && { isMuted: false }),
         OR: [
           { type: SubcommunityType.PUBLIC },
-          { type: SubcommunityType.PASSWORD_PROTECTED }, // Show password-protected to all
+          // PASSWORD_PROTECTED: Only show to authenticated users (they can see it exists, but can't access content)
+          ...(userId ? [{ type: SubcommunityType.PASSWORD_PROTECTED }] : []),
+          // INVITE_ONLY and private memberships: Only show if user is a member
           ...(userId
             ? [
                 {
@@ -214,13 +216,15 @@ export class SubcommunitiesService {
     const membershipInfo = userId && subcommunity.memberships?.[0];
     const isMember = !!membershipInfo;
 
-    // Check access for non-public subcommunities
-    if (subcommunity.type === SubcommunityType.INVITE_ONLY && !isMember) {
-      throw new ForbiddenException("This subcommunity is invite-only");
+    // Hide private communities from non-members (return 404 to not reveal existence)
+    if (!isMember) {
+      if (subcommunity.type === SubcommunityType.INVITE_ONLY) {
+        throw new NotFoundException("Subcommunity not found");
+      }
+      if (subcommunity.type === SubcommunityType.PASSWORD_PROTECTED) {
+        throw new NotFoundException("Subcommunity not found");
+      }
     }
-
-    // For password-protected subcommunities, non-members can see basic info but not threads
-    const requiresPassword = subcommunity.type === SubcommunityType.PASSWORD_PROTECTED && !isMember;
 
     return {
       id: subcommunity.id,
@@ -231,11 +235,9 @@ export class SubcommunitiesService {
       createdBy: subcommunity.createdBy,
       createdAt: subcommunity.createdAt,
       memberCount: subcommunity._count.memberships,
-      // Hide thread count for non-members of password-protected subcommunities
-      threadCount: requiresPassword ? undefined : subcommunity._count.threads,
+      threadCount: subcommunity._count.threads,
       isMember,
-      membership: membershipInfo || null,
-      requiresPassword
+      membership: membershipInfo || null
     };
   }
 

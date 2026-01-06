@@ -10,7 +10,13 @@ import {
   UseGuards
 } from "@nestjs/common";
 import { AdminService } from "./admin.service";
-import { CreateInviteCodeDto, UpdateSubcommunityVisibilityDto } from "./dto";
+import {
+  CreateInviteCodeDto,
+  UpdateSubcommunityVisibilityDto,
+  CreateBotDto,
+  CreateBotBatchDto,
+  CreateAdminCommunityDto
+} from "./dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
@@ -149,5 +155,37 @@ export class AdminController {
   @Post("posts/:id/unmute")
   unmutePost(@Param("id") id: string) {
     return this.adminService.unmutePost(id);
+  }
+
+  // ============================================
+  // Bot Management Endpoints
+  // ============================================
+
+  @Post("bots")
+  createBot(
+    @Body() dto: CreateBotDto,
+    @CurrentUser() user: PublicUser
+  ) {
+    return this.adminService.createBot(dto, user.id);
+  }
+
+  @Post("bots/batch")
+  createBotBatch(
+    @Body() dto: CreateBotBatchDto,
+    @CurrentUser() user: PublicUser
+  ) {
+    return this.adminService.createBotBatch(dto, user.id);
+  }
+
+  // ============================================
+  // Community Creation Endpoints
+  // ============================================
+
+  @Post("communities")
+  createCommunityWithRandomName(
+    @Body() dto: CreateAdminCommunityDto,
+    @CurrentUser() user: PublicUser
+  ) {
+    return this.adminService.createCommunityWithRandomName(dto, user.id);
   }
 }

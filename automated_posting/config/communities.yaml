@@ -1,0 +1,33 @@
+# Community Configuration
+# Define communities to create during --init-forum
+
+communities:
+  # Example community 1: Nature-themed names
+  - active: true
+    name_style: "nature"  # Generates names like "SunnyMeadow", "QuietPond"
+    type: "INVITE_ONLY"
+    description: "A private discussion community"
+    bot_count: 10
+    avatar_rules:
+      body_type_distribution:
+        MALE: 40
+        FEMALE: 40
+        NEUTRAL: 20
+      accessory_chance: 30  # 30% of bots get accessories
+
+  # Example community 2: Friendly-themed names
+  - active: false  # Set to true to enable
+    name_style: "friendly"  # Generates names like "HappyFox", "FriendlyBear"
+    type: "INVITE_ONLY"
+    description: "Another discussion community"
+    bot_count: 15
+    avatar_rules:
+      body_type_distribution:
+        MALE: 33
+        FEMALE: 33
+        NEUTRAL: 34
+      accessory_chance: 25
+
+# Avatar configuration options:
+# body_type_distribution: Percentage distribution for MALE, FEMALE, NEUTRAL (must sum to 100)
+# accessory_chance: Percentage of bots that will have accessories (0-100)

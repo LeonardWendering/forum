@@ -38,7 +38,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
         createdAt: true,
         updatedAt: true,
         isRestricted: true,
-        restrictedToSubcommunityId: true
+        restrictedToSubcommunityId: true,
+        isBot: true
       }
     });
 
