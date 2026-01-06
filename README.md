@@ -255,11 +255,18 @@ Or use Supabase Table Editor to change the `role` column directly.
 
 ### API returns "Internal Server Error"
 - Check Render logs for the actual error
-- Usually means a database column is missing - apply migrations
+- Usually means a database column is missing - see migration fix below
+
+### Migrations recorded but not applied
+If Render logs show "No pending migrations to apply" but columns don't exist:
+1. Create a new migration with `IF NOT EXISTS` clauses (see `20260106130000_fix_missing_columns`)
+2. Push to git - Render will see it as a new pending migration
+3. The idempotent SQL will work whether columns exist or not
 
 ### Profile/Communities not loading
 - Verify the migration with `is_restricted`, `is_muted` columns was applied
 - Check browser console for API errors
+- Trigger a manual redeploy on Render if migrations haven't applied
 
 ### Admin buttons not showing
 - Ensure user has `role = 'ADMIN'` in database
