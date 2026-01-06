@@ -31,6 +31,9 @@ export default function UserProfilePage() {
   const [isLoadingMemberships, setIsLoadingMemberships] = useState(false);
   const [isLoadingThreads, setIsLoadingThreads] = useState(false);
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
+  const [membershipsError, setMembershipsError] = useState<string | null>(null);
+  const [threadsError, setThreadsError] = useState<string | null>(null);
+  const [postsError, setPostsError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [isLoadingAdminUser, setIsLoadingAdminUser] = useState(false);
@@ -64,6 +67,17 @@ export default function UserProfilePage() {
   }, [loadProfile]);
 
   useEffect(() => {
+    if (activeTab === "overview") {
+      if (memberships.length === 0) {
+        loadMemberships();
+      }
+      if (posts.length === 0) {
+        loadPosts(1);
+      }
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
     if (activeTab === "communities" && memberships.length === 0) {
       loadMemberships();
     }
@@ -91,11 +105,13 @@ export default function UserProfilePage() {
 
   const loadMemberships = async () => {
     setIsLoadingMemberships(true);
+    setMembershipsError(null);
     try {
       const data = await profileApi.getUserMemberships(userId);
       setMemberships(data);
     } catch (err) {
       console.error("Failed to load memberships", err);
+      setMembershipsError("Failed to load communities.");
     } finally {
       setIsLoadingMemberships(false);
     }
@@ -103,6 +119,7 @@ export default function UserProfilePage() {
 
   const loadThreads = async (page: number) => {
     setIsLoadingThreads(true);
+    setThreadsError(null);
     try {
       const data = await profileApi.getUserThreads(userId, page, 10);
       setThreads(data.threads);
@@ -110,6 +127,7 @@ export default function UserProfilePage() {
       setThreadsTotalPages(data.pagination.totalPages);
     } catch (err) {
       console.error("Failed to load threads", err);
+      setThreadsError("Failed to load threads.");
     } finally {
       setIsLoadingThreads(false);
     }
@@ -117,6 +135,7 @@ export default function UserProfilePage() {
 
   const loadPosts = async (page: number) => {
     setIsLoadingPosts(true);
+    setPostsError(null);
     try {
       const data = await profileApi.getUserPosts(userId, page, 10);
       setPosts(data.posts);
@@ -124,6 +143,7 @@ export default function UserProfilePage() {
       setPostsTotalPages(data.pagination.totalPages);
     } catch (err) {
       console.error("Failed to load posts", err);
+      setPostsError("Failed to load posts.");
     } finally {
       setIsLoadingPosts(false);
     }
@@ -497,6 +517,82 @@ export default function UserProfilePage() {
                 View {profile.displayName}&apos;s communities, threads, and posts using the tabs above.
               </p>
             )}
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <div className="rounded-lg border border-gray-100 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-900">Communities</h3>
+                  <button
+                    onClick={() => setActiveTab("communities")}
+                    className="text-xs text-blue-600 hover:text-blue-800"
+                  >
+                    View all
+                  </button>
+                </div>
+                {isLoadingMemberships ? (
+                  <div className="animate-pulse space-y-2">
+                    <div className="h-4 bg-gray-100 rounded" />
+                    <div className="h-4 bg-gray-100 rounded" />
+                    <div className="h-4 bg-gray-100 rounded" />
+                  </div>
+                ) : membershipsError ? (
+                  <Alert variant="error">{membershipsError}</Alert>
+                ) : memberships.length === 0 ? (
+                  <p className="text-sm text-gray-500">No communities yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {memberships.slice(0, 3).map((membership) => (
+                      <Link
+                        key={membership.id}
+                        href={`/c/${membership.slug}`}
+                        className="flex items-center justify-between text-sm hover:text-blue-600"
+                      >
+                        <span className="font-medium text-gray-900">{membership.name}</span>
+                        <span className="text-xs text-gray-500">{membership.role}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-gray-100 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-900">Recent Posts</h3>
+                  <button
+                    onClick={() => setActiveTab("posts")}
+                    className="text-xs text-blue-600 hover:text-blue-800"
+                  >
+                    View all
+                  </button>
+                </div>
+                {isLoadingPosts ? (
+                  <div className="animate-pulse space-y-2">
+                    <div className="h-4 bg-gray-100 rounded" />
+                    <div className="h-4 bg-gray-100 rounded" />
+                    <div className="h-4 bg-gray-100 rounded" />
+                  </div>
+                ) : postsError ? (
+                  <Alert variant="error">{postsError}</Alert>
+                ) : posts.length === 0 ? (
+                  <p className="text-sm text-gray-500">No posts yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {posts.slice(0, 3).map((post) => (
+                      <Link
+                        key={post.id}
+                        href={`/t/${post.thread.id}`}
+                        className="block text-sm text-gray-800 hover:text-blue-600"
+                      >
+                        <div className="text-xs text-gray-500">
+                          {post.thread.subcommunity.name} / {post.thread.title}
+                        </div>
+                        <div className="line-clamp-2">{post.content}</div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -509,6 +605,8 @@ export default function UserProfilePage() {
                 <div key={i} className="h-24 bg-gray-200 rounded-lg" />
               ))}
             </div>
+          ) : membershipsError ? (
+            <Alert variant="error">{membershipsError}</Alert>
           ) : memberships.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center text-gray-500">
@@ -558,6 +656,8 @@ export default function UserProfilePage() {
                 <div key={i} className="h-24 bg-gray-200 rounded-lg" />
               ))}
             </div>
+          ) : threadsError ? (
+            <Alert variant="error">{threadsError}</Alert>
           ) : threads.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center text-gray-500">
@@ -611,6 +711,8 @@ export default function UserProfilePage() {
                 <div key={i} className="h-32 bg-gray-200 rounded-lg" />
               ))}
             </div>
+          ) : postsError ? (
+            <Alert variant="error">{postsError}</Alert>
           ) : posts.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center text-gray-500">

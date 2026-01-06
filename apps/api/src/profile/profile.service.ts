@@ -202,6 +202,7 @@ export class ProfileService {
         id: post.id,
         content: post.content,
         createdAt: post.createdAt,
+        isMuted: post.isMuted,
         thread: {
           id: post.thread.id,
           title: post.thread.title,
