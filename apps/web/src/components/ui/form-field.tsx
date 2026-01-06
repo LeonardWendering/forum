@@ -14,6 +14,8 @@ interface FormFieldProps {
   disabled?: boolean;
   required?: boolean;
   autoComplete?: string;
+  min?: number;
+  max?: number;
   children?: ReactNode;
 }
 
@@ -28,6 +30,8 @@ export function FormField({
   disabled = false,
   required = false,
   autoComplete,
+  min,
+  max,
   children
 }: FormFieldProps) {
   return (
@@ -48,6 +52,8 @@ export function FormField({
           disabled={disabled}
           required={required}
           autoComplete={autoComplete}
+          min={min}
+          max={max}
         />
       )}
       {error && <p className="text-sm text-red-600">{error}</p>}
