@@ -36,13 +36,18 @@ model User {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
+  // Restricted account fields (for invite-code registration)
+  isRestricted               Boolean  @default(false) @map("is_restricted")
+  restrictedToSubcommunityId String?  @map("restricted_to_subcommunity_id")
+  registeredWithInviteId     String?  @map("registered_with_invite_id")
+
   profile               Profile?
   verificationTokens    EmailVerificationToken[]
   passwordResetTokens   PasswordResetToken[]
   sessions              Session[]
 
   // Forum relations
-  createdSubcommunities Subcommunity[]
+  createdSubcommunities Subcommunity[] @relation("CreatedSubcommunities")
   memberships           Membership[]
   threads               Thread[]
   posts                 Post[]
@@ -50,6 +55,16 @@ model User {
   sentMessages          Message[]
   conversations1        Conversation[] @relation("ConversationUser1")
   conversations2        Conversation[] @relation("ConversationUser2")
+
+  // Invite code relations
+  restrictedToSubcommunity Subcommunity? @relation("RestrictedUsers", fields: [restrictedToSubcommunityId], references: [id])
+  createdInviteCodes       InviteCode[]  @relation("CreatedInviteCodes")
+  usedInviteCode           InviteCode?   @relation("UsedInviteCodes", fields: [registeredWithInviteId], references: [id])
+
+  // Moderation relations
+  mutedSubcommunities Subcommunity[] @relation("MutedSubcommunities")
+  mutedThreads        Thread[]       @relation("MutedThreads")
+  mutedPosts          Post[]         @relation("MutedPosts")
 }
 
 enum AvatarBodyType {
@@ -149,9 +164,17 @@ model Subcommunity {
   createdAt   DateTime          @default(now()) @map("created_at")
   updatedAt   DateTime          @updatedAt @map("updated_at")
 
-  createdBy   User              @relation(fields: [createdById], references: [id])
-  memberships Membership[]
-  threads     Thread[]
+  // Moderation fields
+  isMuted     Boolean           @default(false) @map("is_muted")
+  mutedAt     DateTime?         @map("muted_at")
+  mutedById   String?           @map("muted_by_id")
+
+  createdBy       User              @relation("CreatedSubcommunities", fields: [createdById], references: [id])
+  memberships     Membership[]
+  threads         Thread[]
+  inviteCodes     InviteCode[]
+  restrictedUsers User[]            @relation("RestrictedUsers")
+  mutedBy         User?             @relation("MutedSubcommunities", fields: [mutedById], references: [id])
 
   @@index([createdById])
 }
@@ -181,9 +204,15 @@ model Thread {
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
+  // Moderation fields
+  isMuted        Boolean      @default(false) @map("is_muted")
+  mutedAt        DateTime?    @map("muted_at")
+  mutedById      String?      @map("muted_by_id")
+
   subcommunity   Subcommunity @relation(fields: [subcommunityId], references: [id], onDelete: Cascade)
   author         User         @relation(fields: [authorId], references: [id])
   posts          Post[]
+  mutedBy        User?        @relation("MutedThreads", fields: [mutedById], references: [id])
 
   @@index([subcommunityId])
   @@index([authorId])
@@ -199,11 +228,17 @@ model Post {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at") // Soft delete
 
+  // Moderation fields
+  isMuted   Boolean   @default(false) @map("is_muted")
+  mutedAt   DateTime? @map("muted_at")
+  mutedById String?   @map("muted_by_id")
+
   thread    Thread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
   author    User      @relation(fields: [authorId], references: [id])
   parent    Post?     @relation("PostReplies", fields: [parentId], references: [id])
   replies   Post[]    @relation("PostReplies")
   votes     Vote[]
+  mutedBy   User?     @relation("MutedPosts", fields: [mutedById], references: [id])
 
   @@index([threadId])
   @@index([authorId])
@@ -258,4 +293,27 @@ model Message {
 
   @@index([conversationId])
   @@index([senderId])
+}
+
+// ============================================
+// Invite Code System
+// ============================================
+
+model InviteCode {
+  id             String       @id @default(cuid())
+  code           String       @unique
+  subcommunityId String       @map("subcommunity_id")
+  isRestricted   Boolean      @default(false) @map("is_restricted")
+  usesRemaining  Int?         @map("uses_remaining") // null = unlimited
+  expiresAt      DateTime?    @map("expires_at")
+  createdById    String       @map("created_by_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  subcommunity   Subcommunity @relation(fields: [subcommunityId], references: [id], onDelete: Cascade)
+  createdBy      User         @relation("CreatedInviteCodes", fields: [createdById], references: [id])
+  usedBy         User[]       @relation("UsedInviteCodes")
+
+  @@index([code])
+  @@index([subcommunityId])
+  @@index([createdById])
 }

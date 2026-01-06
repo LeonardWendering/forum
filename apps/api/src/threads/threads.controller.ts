@@ -42,6 +42,8 @@ export class ThreadsController {
       slug,
       user?.id,
       user?.role,
+      user?.isRestricted,
+      user?.restrictedToSubcommunityId,
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 20
     );

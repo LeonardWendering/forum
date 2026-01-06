@@ -9,7 +9,8 @@ import { Button, Alert } from "@/components/ui";
 import type { Subcommunity } from "@/lib/forum-types";
 
 export default function CommunitiesPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const isRestricted = user?.isRestricted ?? false;
   const [subcommunities, setSubcommunities] = useState<Subcommunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,12 +38,18 @@ export default function CommunitiesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Communities</h1>
           <p className="text-gray-600 mt-1">Browse and join discussion communities</p>
         </div>
-        {isAuthenticated && (
+        {isAuthenticated && !isRestricted && (
           <Link href="/communities/new">
             <Button>Create Community</Button>
           </Link>
         )}
       </div>
+
+      {isRestricted && (
+        <Alert variant="info" className="mb-6">
+          Your account has restricted access. You can only access the community you were invited to.
+        </Alert>
+      )}
 
       {error && (
         <Alert variant="error" className="mb-6">
@@ -72,9 +79,15 @@ export default function CommunitiesPage() {
               />
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No communities yet</h3>
-          <p className="text-gray-600 mb-4">Be the first to create a community!</p>
-          {isAuthenticated && (
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {isRestricted ? "No accessible communities" : "No communities yet"}
+          </h3>
+          <p className="text-gray-600 mb-4">
+            {isRestricted
+              ? "Please contact an administrator for access."
+              : "Be the first to create a community!"}
+          </p>
+          {isAuthenticated && !isRestricted && (
             <Link href="/communities/new">
               <Button>Create Community</Button>
             </Link>

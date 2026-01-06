@@ -28,6 +28,14 @@ export function Header() {
               >
                 Messages
               </Link>
+              {user?.role === "ADMIN" && (
+                <Link
+                  href="/admin"
+                  className="text-sm text-purple-600 hover:text-purple-800 font-medium transition-colors"
+                >
+                  Admin
+                </Link>
+              )}
             </nav>
           )}
         </div>
@@ -37,12 +45,24 @@ export function Header() {
             <div className="h-9 w-24 bg-gray-200 animate-pulse rounded-lg" />
           ) : isAuthenticated && user ? (
             <div className="flex items-center gap-3">
-              <Link
-                href={`/u/${user.id}`}
-                className="hidden sm:block text-sm text-gray-600 hover:text-blue-600 transition-colors"
-              >
-                {user.displayName}
-              </Link>
+              <div className="hidden sm:flex items-center gap-2">
+                <Link
+                  href={`/u/${user.id}`}
+                  className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
+                >
+                  {user.displayName}
+                </Link>
+                {user.role === "ADMIN" && (
+                  <span className="px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded font-medium">
+                    Admin
+                  </span>
+                )}
+                {user.isRestricted && (
+                  <span className="px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded font-medium">
+                    Restricted
+                  </span>
+                )}
+              </div>
               <Button variant="outline" size="sm" onClick={() => logout()}>
                 Logout
               </Button>

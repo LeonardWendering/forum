@@ -19,7 +19,12 @@ import type {
   MessageResponse,
   UserProfile,
   UpdateAvatarRequest,
-  AvatarConfig
+  AvatarConfig,
+  UserMembership,
+  UserPostsResponse,
+  InviteCode,
+  CreateInviteCodeRequest,
+  ValidateInviteCodeResponse
 } from "./forum-types";
 
 // Subcommunities API
@@ -134,6 +139,65 @@ export const profileApi = {
   getPublicProfile: (userId: string): Promise<UserProfile> =>
     api.get(`/users/${userId}`),
 
+  getUserMemberships: (userId: string): Promise<UserMembership[]> =>
+    api.get(`/users/${userId}/memberships`),
+
+  getUserPosts: (userId: string, page = 1, limit = 20): Promise<UserPostsResponse> =>
+    api.get(`/users/${userId}/posts?page=${page}&limit=${limit}`),
+
   deleteAccount: (): Promise<MessageResponse> =>
     api.delete("/profile/me")
+};
+
+// Admin API
+export const adminApi = {
+  // Invite codes
+  createInviteCode: (data: CreateInviteCodeRequest): Promise<InviteCode> =>
+    api.post("/admin/invite-codes", data, true),
+
+  listInviteCodes: (): Promise<InviteCode[]> =>
+    api.get("/admin/invite-codes", true),
+
+  deleteInviteCode: (id: string): Promise<MessageResponse> =>
+    api.delete(`/admin/invite-codes/${id}`),
+
+  // User management
+  listUsers: (page = 1, limit = 20): Promise<{ users: unknown[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> =>
+    api.get(`/admin/users?page=${page}&limit=${limit}`, true),
+
+  suspendUser: (userId: string): Promise<MessageResponse> =>
+    api.patch(`/admin/users/${userId}/suspend`, {}),
+
+  unsuspendUser: (userId: string): Promise<MessageResponse> =>
+    api.patch(`/admin/users/${userId}/unsuspend`, {}),
+
+  deleteUser: (userId: string): Promise<MessageResponse> =>
+    api.delete(`/admin/users/${userId}`),
+
+  // Subcommunity moderation
+  muteSubcommunity: (id: string): Promise<MessageResponse> =>
+    api.post(`/admin/subcommunities/${id}/mute`, {}, true),
+
+  unmuteSubcommunity: (id: string): Promise<MessageResponse> =>
+    api.post(`/admin/subcommunities/${id}/unmute`, {}, true),
+
+  updateSubcommunityVisibility: (id: string, type: string): Promise<Subcommunity> =>
+    api.patch(`/admin/subcommunities/${id}/visibility`, { type }),
+
+  deleteSubcommunity: (id: string): Promise<MessageResponse> =>
+    api.delete(`/admin/subcommunities/${id}`),
+
+  // Thread moderation
+  muteThread: (id: string): Promise<MessageResponse> =>
+    api.post(`/admin/threads/${id}/mute`, {}, true),
+
+  unmuteThread: (id: string): Promise<MessageResponse> =>
+    api.post(`/admin/threads/${id}/unmute`, {}, true),
+
+  // Post moderation
+  mutePost: (id: string): Promise<MessageResponse> =>
+    api.post(`/admin/posts/${id}/mute`, {}, true),
+
+  unmutePost: (id: string): Promise<MessageResponse> =>
+    api.post(`/admin/posts/${id}/unmute`, {}, true)
 };

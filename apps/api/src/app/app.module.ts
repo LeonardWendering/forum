@@ -9,6 +9,7 @@ import { SubcommunitiesModule } from "../subcommunities/subcommunities.module";
 import { ThreadsModule } from "../threads/threads.module";
 import { PostsModule } from "../posts/posts.module";
 import { MessagesModule } from "../messages/messages.module";
+import { AdminModule } from "../admin/admin.module";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { AppService } from "./app.service";
 import { AppController } from "./app.controller";
@@ -27,7 +28,8 @@ import { AppController } from "./app.controller";
     SubcommunitiesModule,
     ThreadsModule,
     PostsModule,
-    MessagesModule
+    MessagesModule,
+    AdminModule
   ],
   controllers: [AppController],
   providers: [

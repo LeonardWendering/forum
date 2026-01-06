@@ -7,7 +7,8 @@ import type {
   VerifyEmailRequest,
   RequestPasswordResetRequest,
   ResetPasswordRequest,
-  ResendVerificationRequest
+  ResendVerificationRequest,
+  ValidateInviteCodeResponse
 } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
@@ -223,6 +224,9 @@ export const authApi = {
 
   resetPassword: (data: ResetPasswordRequest): Promise<MessageResponse> =>
     apiFetch("/auth/password/reset", { method: "POST", body: data }),
+
+  validateInviteCode: (code: string): Promise<ValidateInviteCodeResponse> =>
+    apiFetch("/auth/validate-invite-code", { method: "POST", body: { code } }),
 
   logout: async (): Promise<void> => {
     const refreshToken = tokenStorage.getRefreshToken();

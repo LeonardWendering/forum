@@ -1,11 +1,35 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
-import { Button } from "@/components/ui";
+import { profileApi } from "@/lib/forum-api";
+import { Button, Card, CardContent } from "@/components/ui";
+import type { UserPost } from "@/lib/forum-types";
 
 export default function HomePage() {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
+  const [recentPosts, setRecentPosts] = useState<UserPost[]>([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadRecentPosts();
+    }
+  }, [isAuthenticated, user]);
+
+  const loadRecentPosts = async () => {
+    if (!user) return;
+    setIsLoadingPosts(true);
+    try {
+      const data = await profileApi.getUserPosts(user.id, 1, 2);
+      setRecentPosts(data.posts);
+    } catch (err) {
+      console.error("Failed to load recent posts", err);
+    } finally {
+      setIsLoadingPosts(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -25,8 +49,16 @@ export default function HomePage() {
                 <Link href="/messages" className="text-sm text-gray-600 hover:text-gray-900">
                   Messages
                 </Link>
+                {user.role === "ADMIN" && (
+                  <Link href="/admin" className="text-sm text-purple-600 hover:text-purple-800 font-medium">
+                    Admin
+                  </Link>
+                )}
                 <span className="text-sm text-gray-600">
-                  Welcome, <span className="font-medium text-gray-900">{user.displayName}</span>
+                  Welcome, <Link href={`/u/${user.id}`} className="font-medium text-gray-900 hover:text-blue-600">{user.displayName}</Link>
+                  {user.role === "ADMIN" && (
+                    <span className="ml-2 px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">ADMIN</span>
+                  )}
                 </span>
                 <Button variant="outline" size="sm" onClick={() => logout()}>
                   Logout
@@ -84,24 +116,45 @@ export default function HomePage() {
                 <Button variant="outline" size="lg">Messages</Button>
               </Link>
             </div>
-            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 max-w-md">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Welcome back, {user.displayName}!
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Signed in as <span className="font-medium">{user.email}</span>
-              </p>
-              <div className="flex flex-col gap-2 text-sm text-gray-500">
-                <div className="flex justify-between">
-                  <span>Role:</span>
-                  <span className="font-medium text-gray-700">{user.role}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Email Verified:</span>
-                  <span className="font-medium text-gray-700">
-                    {user.emailVerifiedAt ? "Yes" : "No"}
-                  </span>
-                </div>
+
+            {/* User Card with Recent Posts */}
+            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 max-w-md w-full text-left">
+              <div className="flex items-center gap-3 mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {user.displayName}
+                </h3>
+                {user.role === "ADMIN" && (
+                  <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded font-medium">ADMIN</span>
+                )}
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Your Recent Posts</h4>
+                {isLoadingPosts ? (
+                  <div className="animate-pulse space-y-3">
+                    <div className="h-16 bg-gray-100 rounded" />
+                    <div className="h-16 bg-gray-100 rounded" />
+                  </div>
+                ) : recentPosts.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic">Here will appear your posts.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {recentPosts.map((post) => (
+                      <Link key={post.id} href={`/t/${post.thread.id}`}>
+                        <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
+                          <CardContent className="p-3">
+                            <div className="text-xs text-gray-500 mb-1">
+                              <span className="text-blue-600">{post.thread.subcommunity.name}</span>
+                              {" / "}
+                              {post.thread.title}
+                            </div>
+                            <p className="text-sm text-gray-800 line-clamp-2">{post.content}</p>
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

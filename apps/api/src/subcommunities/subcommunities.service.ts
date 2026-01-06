@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
 import { CreateSubcommunityDto, UpdateSubcommunityDto, JoinSubcommunityDto } from "./dto";
-import { SubcommunityType } from "@prisma/client";
+import { SubcommunityType, UserRole } from "@prisma/client";
 import * as argon2 from "argon2";
 
 @Injectable()
@@ -60,11 +60,61 @@ export class SubcommunitiesService {
     return this.findBySlug(subcommunity.slug, userId);
   }
 
-  async findAll(userId?: string) {
+  async findAll(userId?: string, userRole?: UserRole, isRestricted?: boolean, restrictedToSubcommunityId?: string | null) {
+    // If user is restricted, only show their restricted subcommunity
+    if (isRestricted && restrictedToSubcommunityId) {
+      const subcommunity = await this.prisma.subcommunity.findUnique({
+        where: { id: restrictedToSubcommunityId },
+        include: {
+          _count: {
+            select: {
+              memberships: true,
+              threads: true
+            }
+          },
+          createdBy: {
+            select: {
+              id: true,
+              displayName: true
+            }
+          },
+          memberships: userId
+            ? {
+                where: { userId },
+                select: { role: true, joinedAt: true }
+              }
+            : false
+        }
+      });
+
+      if (!subcommunity) {
+        return [];
+      }
+
+      const membershipInfo = userId && subcommunity.memberships?.[0];
+
+      return [{
+        id: subcommunity.id,
+        name: subcommunity.name,
+        slug: subcommunity.slug,
+        description: subcommunity.description,
+        type: subcommunity.type,
+        createdBy: subcommunity.createdBy,
+        createdAt: subcommunity.createdAt,
+        memberCount: subcommunity._count.memberships,
+        threadCount: subcommunity._count.threads,
+        isMember: !!membershipInfo,
+        membership: membershipInfo || null
+      }];
+    }
+
     const subcommunities = await this.prisma.subcommunity.findMany({
       where: {
+        // Filter out muted subcommunities for non-admins
+        ...(userRole !== UserRole.ADMIN && { isMuted: false }),
         OR: [
           { type: SubcommunityType.PUBLIC },
+          { type: SubcommunityType.PASSWORD_PROTECTED }, // Show password-protected to all
           ...(userId
             ? [
                 {
@@ -88,25 +138,41 @@ export class SubcommunitiesService {
             id: true,
             displayName: true
           }
-        }
+        },
+        memberships: userId
+          ? {
+              where: { userId },
+              select: { role: true, joinedAt: true }
+            }
+          : false
       },
       orderBy: { createdAt: "desc" }
     });
 
-    return subcommunities.map((sub) => ({
-      id: sub.id,
-      name: sub.name,
-      slug: sub.slug,
-      description: sub.description,
-      type: sub.type,
-      createdBy: sub.createdBy,
-      createdAt: sub.createdAt,
-      memberCount: sub._count.memberships,
-      threadCount: sub._count.threads
-    }));
+    return subcommunities.map((sub) => {
+      const membershipInfo = userId && sub.memberships?.[0];
+      const isMember = !!membershipInfo;
+
+      return {
+        id: sub.id,
+        name: sub.name,
+        slug: sub.slug,
+        description: sub.description,
+        type: sub.type,
+        createdBy: sub.createdBy,
+        createdAt: sub.createdAt,
+        memberCount: sub._count.memberships,
+        // Hide thread count for non-members of password-protected subcommunities
+        threadCount: sub.type === SubcommunityType.PASSWORD_PROTECTED && !isMember
+          ? undefined
+          : sub._count.threads,
+        isMember,
+        membership: membershipInfo || null
+      };
+    });
   }
 
-  async findBySlug(slug: string, userId?: string) {
+  async findBySlug(slug: string, userId?: string, userRole?: UserRole, isRestricted?: boolean, restrictedToSubcommunityId?: string | null) {
     const subcommunity = await this.prisma.subcommunity.findUnique({
       where: { slug },
       include: {
@@ -135,23 +201,26 @@ export class SubcommunitiesService {
       throw new NotFoundException("Subcommunity not found");
     }
 
-    // Check access for non-public subcommunities
-    if (subcommunity.type !== SubcommunityType.PUBLIC && userId) {
-      const membership = await this.prisma.membership.findUnique({
-        where: {
-          userId_subcommunityId: {
-            userId,
-            subcommunityId: subcommunity.id
-          }
-        }
-      });
+    // Check if muted (only admins can see muted subcommunities)
+    if (subcommunity.isMuted && userRole !== UserRole.ADMIN) {
+      throw new NotFoundException("Subcommunity not found");
+    }
 
-      if (!membership && subcommunity.type === SubcommunityType.INVITE_ONLY) {
-        throw new ForbiddenException("This subcommunity is invite-only");
-      }
+    // Check if restricted user is trying to access a different subcommunity
+    if (isRestricted && restrictedToSubcommunityId && subcommunity.id !== restrictedToSubcommunityId) {
+      throw new ForbiddenException("You do not have access to this subcommunity");
     }
 
     const membershipInfo = userId && subcommunity.memberships?.[0];
+    const isMember = !!membershipInfo;
+
+    // Check access for non-public subcommunities
+    if (subcommunity.type === SubcommunityType.INVITE_ONLY && !isMember) {
+      throw new ForbiddenException("This subcommunity is invite-only");
+    }
+
+    // For password-protected subcommunities, non-members can see basic info but not threads
+    const requiresPassword = subcommunity.type === SubcommunityType.PASSWORD_PROTECTED && !isMember;
 
     return {
       id: subcommunity.id,
@@ -162,8 +231,11 @@ export class SubcommunitiesService {
       createdBy: subcommunity.createdBy,
       createdAt: subcommunity.createdAt,
       memberCount: subcommunity._count.memberships,
-      threadCount: subcommunity._count.threads,
-      membership: membershipInfo || null
+      // Hide thread count for non-members of password-protected subcommunities
+      threadCount: requiresPassword ? undefined : subcommunity._count.threads,
+      isMember,
+      membership: membershipInfo || null,
+      requiresPassword
     };
   }
 

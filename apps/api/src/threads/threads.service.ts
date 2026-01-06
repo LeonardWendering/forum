@@ -65,22 +65,58 @@ export class ThreadsService {
     subcommunitySlug: string,
     userId?: string,
     userRole?: UserRole,
+    isRestricted?: boolean,
+    restrictedToSubcommunityId?: string | null,
     page = 1,
     limit = 20
   ) {
     const subcommunity = await this.prisma.subcommunity.findUnique({
-      where: { slug: subcommunitySlug }
+      where: { slug: subcommunitySlug },
+      include: {
+        memberships: userId
+          ? {
+              where: { userId },
+              select: { role: true }
+            }
+          : false
+      }
     });
 
     if (!subcommunity) {
       throw new NotFoundException("Subcommunity not found");
     }
 
+    // Check if muted (only admins can see muted subcommunities)
+    if (subcommunity.isMuted && userRole !== UserRole.ADMIN) {
+      throw new NotFoundException("Subcommunity not found");
+    }
+
+    // Check if restricted user is trying to access a different subcommunity
+    if (isRestricted && restrictedToSubcommunityId && subcommunity.id !== restrictedToSubcommunityId) {
+      throw new ForbiddenException("You do not have access to this subcommunity");
+    }
+
+    const isMember = !!(userId && subcommunity.memberships?.length);
+
+    // Check membership for password-protected subcommunities
+    if (subcommunity.type === SubcommunityType.PASSWORD_PROTECTED && !isMember) {
+      throw new ForbiddenException("You must join this subcommunity to view threads");
+    }
+
+    // Check membership for invite-only subcommunities
+    if (subcommunity.type === SubcommunityType.INVITE_ONLY && !isMember) {
+      throw new ForbiddenException("This subcommunity is invite-only");
+    }
+
     const skip = (page - 1) * limit;
 
     const [threads, total] = await Promise.all([
       this.prisma.thread.findMany({
-        where: { subcommunityId: subcommunity.id },
+        where: {
+          subcommunityId: subcommunity.id,
+          // Filter out muted threads for non-admins
+          ...(userRole !== UserRole.ADMIN && { isMuted: false })
+        },
         include: {
           author: {
             select: {
@@ -106,7 +142,10 @@ export class ThreadsService {
         take: limit
       }),
       this.prisma.thread.count({
-        where: { subcommunityId: subcommunity.id }
+        where: {
+          subcommunityId: subcommunity.id,
+          ...(userRole !== UserRole.ADMIN && { isMuted: false })
+        }
       })
     ]);
 

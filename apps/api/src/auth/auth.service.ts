@@ -65,6 +65,41 @@ export class AuthService {
     const displayName = dto.displayName.trim();
     const passwordHash = await argon2.hash(dto.password);
 
+    // Validate invite code if provided
+    let inviteCode: {
+      id: string;
+      subcommunityId: string;
+      isRestricted: boolean;
+      usesRemaining: number | null;
+    } | null = null;
+
+    if (dto.inviteCode) {
+      const foundCode = await this.prisma.inviteCode.findUnique({
+        where: { code: dto.inviteCode },
+        select: {
+          id: true,
+          subcommunityId: true,
+          isRestricted: true,
+          usesRemaining: true,
+          expiresAt: true
+        }
+      });
+
+      if (!foundCode) {
+        throw new BadRequestException("Invalid invite code");
+      }
+
+      if (foundCode.expiresAt && foundCode.expiresAt < new Date()) {
+        throw new BadRequestException("Invite code has expired");
+      }
+
+      if (foundCode.usesRemaining !== null && foundCode.usesRemaining <= 0) {
+        throw new BadRequestException("Invite code has been fully used");
+      }
+
+      inviteCode = foundCode;
+    }
+
     // Check if user already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email }
@@ -79,12 +114,48 @@ export class AuthService {
     if (existingUser && !existingUser.emailVerifiedAt) {
       if (this.skipEmailVerification) {
         // Auto-verify the user
-        await this.prisma.user.update({
-          where: { id: existingUser.id },
-          data: {
-            passwordHash,
-            displayName,
-            emailVerifiedAt: new Date()
+        await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          await tx.user.update({
+            where: { id: existingUser.id },
+            data: {
+              passwordHash,
+              displayName,
+              emailVerifiedAt: new Date(),
+              isRestricted: inviteCode?.isRestricted ?? false,
+              restrictedToSubcommunityId: inviteCode?.isRestricted ? inviteCode.subcommunityId : null,
+              registeredWithInviteId: inviteCode?.id ?? null
+            }
+          });
+
+          // Auto-join to subcommunity if invite code provided
+          if (inviteCode) {
+            // Check if already a member
+            const existingMembership = await tx.membership.findUnique({
+              where: {
+                userId_subcommunityId: {
+                  userId: existingUser.id,
+                  subcommunityId: inviteCode.subcommunityId
+                }
+              }
+            });
+
+            if (!existingMembership) {
+              await tx.membership.create({
+                data: {
+                  userId: existingUser.id,
+                  subcommunityId: inviteCode.subcommunityId,
+                  role: "member"
+                }
+              });
+            }
+
+            // Decrement uses if limited
+            if (inviteCode.usesRemaining !== null) {
+              await tx.inviteCode.update({
+                where: { id: inviteCode.id },
+                data: { usesRemaining: { decrement: 1 } }
+              });
+            }
           }
         });
 
@@ -99,9 +170,41 @@ export class AuthService {
           where: { id: existingUser.id },
           data: {
             passwordHash,
-            displayName
+            displayName,
+            isRestricted: inviteCode?.isRestricted ?? false,
+            restrictedToSubcommunityId: inviteCode?.isRestricted ? inviteCode.subcommunityId : null,
+            registeredWithInviteId: inviteCode?.id ?? null
           }
         });
+
+        // Auto-join to subcommunity if invite code provided
+        if (inviteCode) {
+          const existingMembership = await tx.membership.findUnique({
+            where: {
+              userId_subcommunityId: {
+                userId: existingUser.id,
+                subcommunityId: inviteCode.subcommunityId
+              }
+            }
+          });
+
+          if (!existingMembership) {
+            await tx.membership.create({
+              data: {
+                userId: existingUser.id,
+                subcommunityId: inviteCode.subcommunityId,
+                role: "member"
+              }
+            });
+          }
+
+          if (inviteCode.usesRemaining !== null) {
+            await tx.inviteCode.update({
+              where: { id: inviteCode.id },
+              data: { usesRemaining: { decrement: 1 } }
+            });
+          }
+        }
 
         // Delete old verification tokens
         await tx.emailVerificationToken.deleteMany({
@@ -123,14 +226,37 @@ export class AuthService {
     // Create new user
     if (this.skipEmailVerification) {
       // Auto-verify the user on creation
-      await this.prisma.user.create({
-        data: {
-          email,
-          passwordHash,
-          displayName,
-          emailVerifiedAt: new Date(),
-          profile: {
-            create: {}
+      await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const createdUser = await tx.user.create({
+          data: {
+            email,
+            passwordHash,
+            displayName,
+            emailVerifiedAt: new Date(),
+            isRestricted: inviteCode?.isRestricted ?? false,
+            restrictedToSubcommunityId: inviteCode?.isRestricted ? inviteCode.subcommunityId : null,
+            registeredWithInviteId: inviteCode?.id ?? null,
+            profile: {
+              create: {}
+            }
+          }
+        });
+
+        // Auto-join to subcommunity if invite code provided
+        if (inviteCode) {
+          await tx.membership.create({
+            data: {
+              userId: createdUser.id,
+              subcommunityId: inviteCode.subcommunityId,
+              role: "member"
+            }
+          });
+
+          if (inviteCode.usesRemaining !== null) {
+            await tx.inviteCode.update({
+              where: { id: inviteCode.id },
+              data: { usesRemaining: { decrement: 1 } }
+            });
           }
         }
       });
@@ -146,11 +272,32 @@ export class AuthService {
           email,
           passwordHash,
           displayName,
+          isRestricted: inviteCode?.isRestricted ?? false,
+          restrictedToSubcommunityId: inviteCode?.isRestricted ? inviteCode.subcommunityId : null,
+          registeredWithInviteId: inviteCode?.id ?? null,
           profile: {
             create: {}
           }
         }
       });
+
+      // Auto-join to subcommunity if invite code provided
+      if (inviteCode) {
+        await tx.membership.create({
+          data: {
+            userId: createdUser.id,
+            subcommunityId: inviteCode.subcommunityId,
+            role: "member"
+          }
+        });
+
+        if (inviteCode.usesRemaining !== null) {
+          await tx.inviteCode.update({
+            where: { id: inviteCode.id },
+            data: { usesRemaining: { decrement: 1 } }
+          });
+        }
+      }
 
       const verificationToken = await this.issueEmailVerificationToken(tx, createdUser.id);
 
@@ -161,6 +308,35 @@ export class AuthService {
 
     return {
       message: "Registration successful. Check your email for a verification code."
+    };
+  }
+
+  async validateInviteCode(code: string) {
+    const inviteCode = await this.prisma.inviteCode.findUnique({
+      where: { code },
+      include: {
+        subcommunity: {
+          select: { id: true, name: true, slug: true, description: true }
+        }
+      }
+    });
+
+    if (!inviteCode) {
+      throw new BadRequestException("Invalid invite code");
+    }
+
+    if (inviteCode.expiresAt && inviteCode.expiresAt < new Date()) {
+      throw new BadRequestException("Invite code has expired");
+    }
+
+    if (inviteCode.usesRemaining !== null && inviteCode.usesRemaining <= 0) {
+      throw new BadRequestException("Invite code has been fully used");
+    }
+
+    return {
+      valid: true,
+      isRestricted: inviteCode.isRestricted,
+      subcommunity: inviteCode.subcommunity
     };
   }
 
@@ -397,7 +573,9 @@ export class AuthService {
       status: user.status,
       emailVerifiedAt: user.emailVerifiedAt,
       createdAt: user.createdAt,
-      updatedAt: user.updatedAt
+      updatedAt: user.updatedAt,
+      isRestricted: user.isRestricted,
+      restrictedToSubcommunityId: user.restrictedToSubcommunityId
     };
   }
 

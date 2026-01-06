@@ -11,6 +11,8 @@ export interface User {
   emailVerifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  isRestricted: boolean;
+  restrictedToSubcommunityId: string | null;
 }
 
 // Auth types
@@ -42,6 +44,7 @@ export interface RegisterRequest {
   email: string;
   displayName: string;
   password: string;
+  inviteCode?: string;
 }
 
 export interface LoginRequest {
@@ -69,4 +72,15 @@ export interface ResetPasswordRequest {
 
 export interface ResendVerificationRequest {
   email: string;
+}
+
+export interface ValidateInviteCodeResponse {
+  valid: boolean;
+  isRestricted: boolean;
+  subcommunity: {
+    id: string;
+    name: string;
+    slug: string;
+    description: string | null;
+  };
 }

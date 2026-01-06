@@ -6,7 +6,8 @@ import {
   Delete,
   Body,
   Param,
-  UseGuards
+  UseGuards,
+  ForbiddenException
 } from "@nestjs/common";
 import { SubcommunitiesService } from "./subcommunities.service";
 import { CreateSubcommunityDto, UpdateSubcommunityDto, JoinSubcommunityDto } from "./dto";
@@ -22,19 +23,34 @@ export class SubcommunitiesController {
 
   @Post()
   create(@Body() dto: CreateSubcommunityDto, @CurrentUser() user: PublicUser) {
+    // Restricted users cannot create subcommunities
+    if (user.isRestricted) {
+      throw new ForbiddenException("Restricted accounts cannot create subcommunities");
+    }
     return this.subcommunitiesService.create(dto, user.id);
   }
 
   @Get()
   @Public()
   findAll(@CurrentUser() user?: PublicUser) {
-    return this.subcommunitiesService.findAll(user?.id);
+    return this.subcommunitiesService.findAll(
+      user?.id,
+      user?.role,
+      user?.isRestricted,
+      user?.restrictedToSubcommunityId
+    );
   }
 
   @Get(":slug")
   @Public()
   findOne(@Param("slug") slug: string, @CurrentUser() user?: PublicUser) {
-    return this.subcommunitiesService.findBySlug(slug, user?.id);
+    return this.subcommunitiesService.findBySlug(
+      slug,
+      user?.id,
+      user?.role,
+      user?.isRestricted,
+      user?.restrictedToSubcommunityId
+    );
   }
 
   @Patch(":slug")

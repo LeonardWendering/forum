@@ -109,6 +109,124 @@ export class ProfileService {
     return profile?.avatarBodyType !== null;
   }
 
+  async getUserMemberships(userId: string) {
+    const memberships = await this.prisma.membership.findMany({
+      where: { userId },
+      include: {
+        subcommunity: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            description: true,
+            type: true,
+            createdAt: true,
+            _count: {
+              select: {
+                memberships: true,
+                threads: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { joinedAt: "desc" }
+    });
+
+    return memberships.map((m) => ({
+      id: m.subcommunity.id,
+      name: m.subcommunity.name,
+      slug: m.subcommunity.slug,
+      description: m.subcommunity.description,
+      type: m.subcommunity.type,
+      createdAt: m.subcommunity.createdAt,
+      memberCount: m.subcommunity._count.memberships,
+      threadCount: m.subcommunity._count.threads,
+      role: m.role,
+      joinedAt: m.joinedAt
+    }));
+  }
+
+  async getUserPosts(userId: string, page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+
+    const [posts, total] = await Promise.all([
+      this.prisma.post.findMany({
+        where: {
+          authorId: userId,
+          deletedAt: null
+        },
+        include: {
+          thread: {
+            select: {
+              id: true,
+              title: true,
+              subcommunity: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true
+                }
+              }
+            }
+          },
+          author: {
+            select: {
+              id: true,
+              displayName: true,
+              profile: {
+                select: {
+                  avatarBodyType: true,
+                  avatarSkinColor: true,
+                  avatarHairstyle: true,
+                  avatarAccessory: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit
+      }),
+      this.prisma.post.count({
+        where: {
+          authorId: userId,
+          deletedAt: null
+        }
+      })
+    ]);
+
+    return {
+      posts: posts.map((post) => ({
+        id: post.id,
+        content: post.content,
+        createdAt: post.createdAt,
+        thread: {
+          id: post.thread.id,
+          title: post.thread.title,
+          subcommunity: post.thread.subcommunity
+        },
+        author: {
+          id: post.author.id,
+          displayName: post.author.displayName,
+          avatarConfig: post.author.profile?.avatarBodyType ? {
+            bodyType: post.author.profile.avatarBodyType,
+            skinColor: post.author.profile.avatarSkinColor,
+            hairstyle: post.author.profile.avatarHairstyle,
+            accessory: post.author.profile.avatarAccessory
+          } : null
+        }
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  }
+
   async deleteAccount(userId: string) {
     // Update user's display name to "(deleted user)" and clear sensitive data
     await this.prisma.$transaction(async (tx) => {

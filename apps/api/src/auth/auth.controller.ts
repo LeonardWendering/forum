@@ -8,6 +8,7 @@ import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { RequestPasswordResetDto } from "./dto/request-password-reset.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 import { ResendVerificationDto } from "./dto/resend-verification.dto";
+import { ValidateInviteCodeDto } from "./dto/validate-invite-code.dto";
 import { Public } from "./decorators/public.decorator";
 
 @Controller("auth")
@@ -18,6 +19,11 @@ export class AuthController {
   @Post("register")
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
+  }
+
+  @Post("validate-invite-code")
+  async validateInviteCode(@Body() dto: ValidateInviteCodeDto) {
+    return this.authService.validateInviteCode(dto.code);
   }
 
   @Post("verification/resend")

@@ -26,11 +26,13 @@ export interface Subcommunity {
   };
   createdAt: string;
   memberCount: number;
-  threadCount: number;
+  threadCount?: number;
+  isMember?: boolean;
   membership?: {
     role: string;
     joinedAt: string;
   } | null;
+  requiresPassword?: boolean;
 }
 
 export interface CreateSubcommunityRequest {
@@ -189,4 +191,84 @@ export interface Pagination {
 
 export interface MessageResponse {
   message: string;
+}
+
+// User membership types (for profile)
+export interface UserMembership {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  type: SubcommunityType;
+  createdAt: string;
+  memberCount: number;
+  threadCount: number;
+  role: string;
+  joinedAt: string;
+}
+
+// User posts types (for profile)
+export interface UserPost {
+  id: string;
+  content: string;
+  createdAt: string;
+  thread: {
+    id: string;
+    title: string;
+    subcommunity: {
+      id: string;
+      name: string;
+      slug: string;
+    };
+  };
+  author: {
+    id: string;
+    displayName: string;
+    avatarConfig: AvatarConfig | null;
+  };
+}
+
+export interface UserPostsResponse {
+  posts: UserPost[];
+  pagination: Pagination;
+}
+
+// Invite code types
+export interface InviteCode {
+  id: string;
+  code: string;
+  subcommunity: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  isRestricted: boolean;
+  usesRemaining: number | null;
+  expiresAt: string | null;
+  createdBy: {
+    id: string;
+    displayName: string;
+  };
+  createdAt: string;
+  _count?: {
+    usedBy: number;
+  };
+}
+
+export interface CreateInviteCodeRequest {
+  subcommunityId: string;
+  isRestricted?: boolean;
+  usesRemaining?: number;
+  expiresAt?: string;
+}
+
+export interface ValidateInviteCodeResponse {
+  valid: boolean;
+  isRestricted: boolean;
+  subcommunity: {
+    id: string;
+    name: string;
+    slug: string;
+    description: string | null;
+  };
 }

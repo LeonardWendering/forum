@@ -7,7 +7,9 @@ import { useAuth } from "@/context/auth-context";
 import { profileApi, messageApi } from "@/lib/forum-api";
 import { ApiClientError } from "@/lib/api";
 import { Button, Card, CardContent, Alert, Avatar, Input } from "@/components/ui";
-import type { UserProfile } from "@/lib/forum-types";
+import type { UserProfile, UserMembership, UserPost } from "@/lib/forum-types";
+
+type Tab = "overview" | "forums" | "posts";
 
 export default function UserProfilePage() {
   const params = useParams();
@@ -16,7 +18,14 @@ export default function UserProfilePage() {
   const { user, isAuthenticated, logout } = useAuth();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [memberships, setMemberships] = useState<UserMembership[]>([]);
+  const [posts, setPosts] = useState<UserPost[]>([]);
+  const [postsPage, setPostsPage] = useState(1);
+  const [postsTotalPages, setPostsTotalPages] = useState(1);
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMemberships, setIsLoadingMemberships] = useState(false);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isStartingConversation, setIsStartingConversation] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -44,6 +53,44 @@ export default function UserProfilePage() {
     loadProfile();
   }, [userId]);
 
+  useEffect(() => {
+    if (activeTab === "forums" && memberships.length === 0) {
+      loadMemberships();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === "posts" && posts.length === 0) {
+      loadPosts(1);
+    }
+  }, [activeTab]);
+
+  const loadMemberships = async () => {
+    setIsLoadingMemberships(true);
+    try {
+      const data = await profileApi.getUserMemberships(userId);
+      setMemberships(data);
+    } catch (err) {
+      console.error("Failed to load memberships", err);
+    } finally {
+      setIsLoadingMemberships(false);
+    }
+  };
+
+  const loadPosts = async (page: number) => {
+    setIsLoadingPosts(true);
+    try {
+      const data = await profileApi.getUserPosts(userId, page, 10);
+      setPosts(data.posts);
+      setPostsPage(data.pagination.page);
+      setPostsTotalPages(data.pagination.totalPages);
+    } catch (err) {
+      console.error("Failed to load posts", err);
+    } finally {
+      setIsLoadingPosts(false);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!isAuthenticated) {
       router.push("/login");
@@ -56,8 +103,6 @@ export default function UserProfilePage() {
       router.push(`/messages/${conversation.id}`);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        // If conversation already exists, the API might return it or an error
-        // Let's try to find an existing conversation
         try {
           const conversations = await messageApi.listConversations();
           const existing = conversations.find(c => c.otherUser.id === userId);
@@ -124,11 +169,11 @@ export default function UserProfilePage() {
   if (!profile) return null;
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <Card>
+    <div className="max-w-3xl mx-auto">
+      {/* Profile Header */}
+      <Card className="mb-6">
         <CardContent className="p-6">
           <div className="flex items-start gap-6">
-            {/* Avatar */}
             <Avatar
               config={profile.avatarConfig ? {
                 bodyType: profile.avatarConfig.bodyType,
@@ -139,7 +184,6 @@ export default function UserProfilePage() {
               size="lg"
             />
 
-            {/* Info */}
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-gray-900 mb-1">
                 {profile.displayName}
@@ -152,15 +196,11 @@ export default function UserProfilePage() {
                 <p className="text-gray-700 mb-4">{profile.bio}</p>
               )}
 
-              {/* Actions */}
               {!isOwnProfile && isAuthenticated && (
                 <Button
                   onClick={handleSendMessage}
                   isLoading={isStartingConversation}
                 >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
                   Send Message
                 </Button>
               )}
@@ -173,72 +213,226 @@ export default function UserProfilePage() {
                   {" "}to send a message
                 </p>
               )}
-
-              {isOwnProfile && (
-                <div className="space-y-4">
-                  <div className="flex gap-3">
-                    <Link href="/setup-avatar">
-                      <Button variant="outline">
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Change Avatar
-                      </Button>
-                    </Link>
-                  </div>
-
-                  <div className="pt-4 border-t border-gray-200">
-                    {!showDeleteConfirm ? (
-                      <button
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="text-sm text-red-600 hover:text-red-800"
-                      >
-                        Delete Account
-                      </button>
-                    ) : (
-                      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-sm text-red-800 mb-3">
-                          This action cannot be undone. Your display name will be changed to &quot;(deleted user)&quot; and you will be logged out.
-                        </p>
-                        <p className="text-sm text-red-800 mb-3">
-                          Type <strong>DELETE</strong> to confirm:
-                        </p>
-                        <Input
-                          value={deleteConfirmText}
-                          onChange={(e) => setDeleteConfirmText(e.target.value)}
-                          placeholder="Type DELETE"
-                          className="mb-3"
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setShowDeleteConfirm(false);
-                              setDeleteConfirmText("");
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={handleDeleteAccount}
-                            isLoading={isDeleting}
-                            disabled={deleteConfirmText !== "DELETE"}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            Delete Account
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Tabs */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex gap-8">
+          <button
+            onClick={() => setActiveTab("overview")}
+            className={`py-3 border-b-2 font-medium text-sm ${
+              activeTab === "overview"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab("forums")}
+            className={`py-3 border-b-2 font-medium text-sm ${
+              activeTab === "forums"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Forums
+          </button>
+          <button
+            onClick={() => setActiveTab("posts")}
+            className={`py-3 border-b-2 font-medium text-sm ${
+              activeTab === "posts"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Posts
+          </button>
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === "overview" && (
+        <Card>
+          <CardContent className="p-6">
+            {isOwnProfile ? (
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  <Link href="/setup-avatar">
+                    <Button variant="outline">Change Avatar</Button>
+                  </Link>
+                </div>
+
+                <div className="pt-4 border-t border-gray-200">
+                  {!showDeleteConfirm ? (
+                    <button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="text-sm text-red-600 hover:text-red-800"
+                    >
+                      Delete Account
+                    </button>
+                  ) : (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm text-red-800 mb-3">
+                        This action cannot be undone. Your display name will be changed to &quot;(deleted user)&quot; and you will be logged out.
+                      </p>
+                      <p className="text-sm text-red-800 mb-3">
+                        Type <strong>DELETE</strong> to confirm:
+                      </p>
+                      <Input
+                        value={deleteConfirmText}
+                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                        placeholder="Type DELETE"
+                        className="mb-3"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowDeleteConfirm(false);
+                            setDeleteConfirmText("");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleDeleteAccount}
+                          isLoading={isDeleting}
+                          disabled={deleteConfirmText !== "DELETE"}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          Delete Account
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-500">
+                View {profile.displayName}&apos;s forums and posts using the tabs above.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === "forums" && (
+        <div>
+          {isLoadingMemberships ? (
+            <div className="animate-pulse space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-24 bg-gray-200 rounded-lg" />
+              ))}
+            </div>
+          ) : memberships.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center text-gray-500">
+                No forum memberships yet.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {memberships.map((membership) => (
+                <Link key={membership.id} href={`/c/${membership.slug}`}>
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{membership.name}</h3>
+                          {membership.description && (
+                            <p className="text-sm text-gray-600 mt-1">{membership.description}</p>
+                          )}
+                          <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                            <span>{membership.memberCount} members</span>
+                            <span>{membership.threadCount} threads</span>
+                            <span>Joined {new Date(membership.joinedAt).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-1 text-xs rounded ${
+                          membership.role === "moderator"
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}>
+                          {membership.role}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "posts" && (
+        <div>
+          {isLoadingPosts ? (
+            <div className="animate-pulse space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-32 bg-gray-200 rounded-lg" />
+              ))}
+            </div>
+          ) : posts.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center text-gray-500">
+                {isOwnProfile ? "Here will appear your posts." : "No posts yet."}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {posts.map((post) => (
+                <Link key={post.id} href={`/t/${post.thread.id}`}>
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                    <CardContent className="p-4">
+                      <div className="text-xs text-gray-500 mb-2">
+                        <span className="text-blue-600">{post.thread.subcommunity.name}</span>
+                        {" / "}
+                        <span>{post.thread.title}</span>
+                      </div>
+                      <p className="text-gray-800 line-clamp-3">{post.content}</p>
+                      <div className="mt-2 text-xs text-gray-500">
+                        {new Date(post.createdAt).toLocaleString()}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+
+              {/* Pagination */}
+              {postsTotalPages > 1 && (
+                <div className="flex justify-center gap-2 mt-6">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => loadPosts(postsPage - 1)}
+                    disabled={postsPage <= 1}
+                  >
+                    Previous
+                  </Button>
+                  <span className="py-2 px-4 text-sm text-gray-600">
+                    Page {postsPage} of {postsTotalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => loadPosts(postsPage + 1)}
+                    disabled={postsPage >= postsTotalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {error && (
         <Alert variant="error" className="mt-4">
