@@ -1,111 +1,84 @@
-# Community Forum Monorepo
+# Forum Monorepo
 
-This repository hosts the privacy-first discussion forum described in `description.md`. It uses a pnpm workspace to keep the web client (Next.js), API (NestJS), and shared packages aligned.
+Privacy-first discussion forum with subcommunities, nested discussions, private messaging, and admin moderation. Hosted with Supabase (database), Render (API), and Vercel (web).
 
-## Structure
+## Architecture
 
-- `apps/web`: Next.js frontend.
-- `apps/api`: NestJS backend.
-- `packages/shared`: Shared TypeScript utilities and schemas.
-- `docker-compose.yml`: Local Postgres, Redis, and Mailhog stack.
+- Web: Next.js 14 App Router in `apps/web` (Vercel)
+- API: NestJS 10 in `apps/api` (Render)
+- DB: Supabase Postgres with Prisma migrations in `prisma/`
+- Auth: JWT access/refresh tokens with DB-backed sessions (Argon2)
+- Email: SMTP via `MAIL_*` env vars for verification and password reset
 
-## Prerequisites
+## Repo Layout
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or any Docker Engine >= 24).
-- Node.js 20.x (ships with `corepack`, which manages pnpm).
-- pnpm 9.x (`corepack enable pnpm`).
+- `apps/web`: Next.js frontend (routes in `apps/web/src/app`)
+- `apps/api`: NestJS backend (modules in `apps/api/src`)
+- `prisma`: Prisma schema and migrations
+- `packages/shared`: shared types/utilities (lightly used)
 
-## Local Development
+## Core Features
 
-1. **Clone & install**
-   ```bash
-   corepack enable pnpm
-   pnpm install
-   ```
+- Auth: register, verify email, login/refresh/logout, password reset, invite code validation
+- Forum: subcommunities (public/invite/password), memberships, threads, posts with nested replies, voting
+- Messaging: conversations and messages
+- Profiles: avatars, memberships, threads, posts
+- Admin: invite codes, user suspend/delete, subcommunity visibility/mute, thread/post mute, vote breakdown visibility
 
-2. **Create environment files**
+## Key Web Routes
 
-   Create `.env` in the project root (optional, for Docker Compose overrides):
-   ```env
-   POSTGRES_USER=forum_user
-   POSTGRES_PASSWORD=forum_pass
-   POSTGRES_DB=forum_dev
-   POSTGRES_PORT=5432
-   REDIS_PORT=6379
-   MAILHOG_SMTP_PORT=1025
-   MAILHOG_DASHBOARD_PORT=8025
-   ```
+- `/` (landing)
+- `/communities`, `/c/[slug]`, `/c/[slug]/new`
+- `/t/[threadId]`
+- `/messages`, `/messages/[conversationId]`
+- `/u/[userId]`
+- `/admin`, `/admin/invite-codes`, `/admin/users`, `/admin/subcommunities`
 
-   Create `apps/api/.env`:
-   ```env
-   NODE_ENV=development
-   PORT=4000
-   DATABASE_URL=postgresql://forum_user:forum_pass@localhost:5432/forum_dev
-   REDIS_URL=redis://localhost:6379
-   MAILHOG_HOST=localhost
-   MAILHOG_PORT=1025
-   MAIL_FROM_ADDRESS=forum@example.com
-   PUBLIC_APP_URL=http://localhost:3000
-   JWT_ACCESS_TOKEN_SECRET=<generate-32-char-secret>
-   JWT_ACCESS_TOKEN_TTL=15m
-   JWT_REFRESH_TOKEN_SECRET=<generate-32-char-secret>
-   JWT_REFRESH_TOKEN_TTL=30d
-   ```
+## Deployment
 
-   Create `apps/web/.env.local`:
-   ```env
-   NEXT_PUBLIC_API_URL=http://localhost:4000/api
-   ```
+### Render (API)
 
-   **Generate JWT secrets** with:
-   ```bash
-   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-   ```
+Service setup:
+- Root directory: `apps/api`
+- Build command:
+  ```bash
+  npm run render-build
+  ```
+- Start command:
+  ```bash
+  cd ../.. && npx prisma migrate deploy && cd apps/api && npm start
+  ```
 
-3. **Start infrastructure (Postgres, Redis, Mailhog)**
-   ```bash
-   docker compose up -d
-   ```
-   - Postgres: `localhost:5432`
-   - Redis: `localhost:6379`
-   - Mailhog UI: http://localhost:8025 (SMTP on port 1025)
+Required env vars (Render):
+- `DATABASE_URL`
+- `JWT_ACCESS_TOKEN_SECRET`
+- `JWT_REFRESH_TOKEN_SECRET`
+- `JWT_ACCESS_TOKEN_TTL` (default 15m)
+- `JWT_REFRESH_TOKEN_TTL` (default 30d)
+- `PUBLIC_APP_URL` (Vercel URL)
+- `MAIL_FROM_ADDRESS`
+- `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASS` (SMTP)
+- `SKIP_EMAIL_VERIFICATION=true` (optional, for testing flows)
 
-4. **Generate Prisma client and apply migrations**
-   ```bash
-   pnpm prisma:generate
-   pnpm prisma:migrate
-   ```
+### Vercel (Web)
 
-5. **Run the apps (in separate terminals)**
-   ```bash
-   pnpm dev:api   # starts NestJS on http://localhost:4000/api
-   pnpm dev:web   # starts Next.js on http://localhost:3000
-   ```
-   or run both via `pnpm dev`.
+Project setup:
+- Root directory: `apps/web`
+- Build command: `npm run build`
 
-When the API boots, it will connect to the Compose services using the values from `apps/api/.env`. The web client uses `NEXT_PUBLIC_API_URL` (defaults to `http://localhost:4000/api`).
+Required env vars (Vercel):
+- `NEXT_PUBLIC_API_URL=https://forum-api-kkg0.onrender.com/api`
 
-## Database & Prisma
+## Database Migrations (Supabase)
 
-- Prisma schema lives in `prisma/schema.prisma`.
-- Run `pnpm prisma:generate` after installing dependencies to create the Prisma client.
-- Apply migrations with `pnpm prisma:migrate`.
-- The NestJS API expects `DATABASE_URL` to point at the local Postgres instance from Docker Compose.
+- Prisma schema: `prisma/schema.prisma`
+- Migrations: `prisma/migrations`
+- Render runs `npx prisma migrate deploy` on each deploy via the start command.
+- If API logs mention missing columns (e.g. `User.is_restricted`), run migrations in the Render shell or apply the latest migration SQL in Supabase.
 
-## API Endpoints
+## Working on Features
 
-### Auth (`/api/auth`)
-- `POST /register` - Create a new account
-- `POST /verify-email` - Verify email with code
-- `POST /verification/resend` - Resend verification email
-- `POST /login` - Sign in and receive tokens
-- `POST /refresh` - Refresh access token
-- `POST /logout` - Invalidate refresh token
-- `POST /password/request-reset` - Request password reset email
-- `POST /password/reset` - Reset password with token
-
-## Next Steps
-
-- Flesh out shared types in `packages/shared`.
-- Implement forum features (subcommunities, threads, posts, votes, messaging) as described in `agent.md`.
-- Add rate limiting and automated tests as Phase 1 progresses.
+- Frontend pages: `apps/web/src/app`
+- Shared UI components: `apps/web/src/components`
+- API modules: `apps/api/src` (`auth`, `profile`, `subcommunities`, `threads`, `posts`, `messages`, `admin`)
+- Prisma models: `prisma/schema.prisma`
