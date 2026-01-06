@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
 import { CreatePostDto, UpdatePostDto, VoteDto } from "./dto";
-import { UserRole } from "@prisma/client";
+import { SubcommunityType, UserRole } from "@prisma/client";
 
 @Injectable()
 export class PostsService {
@@ -76,7 +76,8 @@ export class PostsService {
     const posts = await this.prisma.post.findMany({
       where: {
         threadId,
-        deletedAt: null
+        deletedAt: null,
+        ...(userRole !== UserRole.ADMIN && { isMuted: false })
       },
       include: {
         author: {
@@ -126,6 +127,7 @@ export class PostsService {
       postMap.set(post.id, {
         id: post.id,
         content: post.content,
+        isMuted: post.isMuted,
         author: {
           id: post.author.id,
           displayName: post.author.displayName,
@@ -190,6 +192,7 @@ export class PostsService {
     return {
       id: post.id,
       content: post.content,
+      isMuted: post.isMuted,
       author: post.author,
       thread: post.thread,
       parentId: post.parentId,
@@ -342,6 +345,96 @@ export class PostsService {
     });
 
     return { message: "Vote removed" };
+  }
+
+  async findRecent(
+    limit = 2,
+    viewerId?: string,
+    viewerRole?: UserRole,
+    isRestricted?: boolean,
+    restrictedToSubcommunityId?: string | null
+  ) {
+    const isAdmin = viewerRole === UserRole.ADMIN;
+    const subcommunityFilter: Record<string, unknown> = {};
+
+    if (!isAdmin) {
+      subcommunityFilter.isMuted = false;
+    }
+
+    if (isRestricted && restrictedToSubcommunityId) {
+      subcommunityFilter.id = restrictedToSubcommunityId;
+    } else if (viewerId) {
+      subcommunityFilter.OR = [
+        { type: SubcommunityType.PUBLIC },
+        { memberships: { some: { userId: viewerId } } }
+      ];
+    } else {
+      subcommunityFilter.type = SubcommunityType.PUBLIC;
+    }
+
+    const posts = await this.prisma.post.findMany({
+      where: {
+        deletedAt: null,
+        ...(isAdmin ? {} : { isMuted: false }),
+        thread: {
+          ...(isAdmin ? {} : { isMuted: false }),
+          subcommunity: subcommunityFilter
+        }
+      },
+      include: {
+        thread: {
+          select: {
+            id: true,
+            title: true,
+            subcommunity: {
+              select: {
+                id: true,
+                name: true,
+                slug: true
+              }
+            }
+          }
+        },
+        author: {
+          select: {
+            id: true,
+            displayName: true,
+            profile: {
+              select: {
+                avatarBodyType: true,
+                avatarSkinColor: true,
+                avatarHairstyle: true,
+                avatarAccessory: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit
+    });
+
+    return posts.map((post) => ({
+      id: post.id,
+      content: post.content,
+      createdAt: post.createdAt,
+      isMuted: post.isMuted,
+      thread: {
+        id: post.thread.id,
+        title: post.thread.title,
+        subcommunity: post.thread.subcommunity
+      },
+      author: {
+        id: post.author.id,
+        displayName: post.author.displayName,
+        avatarConfig: post.author.profile?.avatarBodyType ? {
+          bodyType: post.author.profile.avatarBodyType,
+          skinColor: post.author.profile.avatarSkinColor,
+          hairstyle: post.author.profile.avatarHairstyle,
+          accessory: post.author.profile.avatarAccessory
+        } : null
+      }
+    }));
   }
 
   // Admin-only: get vote breakdown for a post

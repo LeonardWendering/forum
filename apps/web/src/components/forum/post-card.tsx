@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
-import { postApi } from "@/lib/forum-api";
+import { adminApi, postApi } from "@/lib/forum-api";
 import { Button, Avatar } from "@/components/ui";
 import type { Post } from "@/lib/forum-types";
 
@@ -32,6 +32,7 @@ export function PostCard({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentVote, setCurrentVote] = useState(post.userVote || 0);
   const [isVoting, setIsVoting] = useState(false);
+  const [adminActionLoading, setAdminActionLoading] = useState<string | null>(null);
 
   const isAuthor = user?.id === post.author.id;
   const isAdmin = user?.role === "ADMIN";
@@ -73,6 +74,36 @@ export function PostCard({
       console.error("Reply error:", error);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleToggleMute = async () => {
+    if (!isAdmin) return;
+    setAdminActionLoading("mute");
+    try {
+      if (post.isMuted) {
+        await adminApi.unmutePost(post.id);
+      } else {
+        await adminApi.mutePost(post.id);
+      }
+      onPostUpdated?.();
+    } catch (error) {
+      console.error("Failed to update post moderation status", error);
+    } finally {
+      setAdminActionLoading(null);
+    }
+  };
+
+  const handleDeletePost = async () => {
+    if (!confirm("Delete this post? This cannot be undone.")) return;
+    setAdminActionLoading("delete");
+    try {
+      await postApi.delete(post.id);
+      onPostUpdated?.();
+    } catch (error) {
+      console.error("Failed to delete post", error);
+    } finally {
+      setAdminActionLoading(null);
     }
   };
 
@@ -144,7 +175,10 @@ export function PostCard({
               {isAuthor && (
                 <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">You</span>
               )}
-              <span className="text-gray-400">•</span>
+              {post.isMuted && (
+                <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded">Muted</span>
+              )}
+              <span className="text-gray-400">|</span>
               <span className="text-gray-500">{formatDate(post.createdAt)}</span>
               {post.updatedAt !== post.createdAt && (
                 <span className="text-gray-400 text-xs">(edited)</span>
@@ -168,6 +202,28 @@ export function PostCard({
                 <span className="text-sm text-gray-400">
                   {post.replyCount} {post.replyCount === 1 ? "reply" : "replies"}
                 </span>
+              )}
+              {isAdmin && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleToggleMute}
+                    isLoading={adminActionLoading === "mute"}
+                    className={post.isMuted ? "text-green-600 hover:text-green-700 hover:bg-green-50" : "text-amber-600 hover:text-amber-700 hover:bg-amber-50"}
+                  >
+                    {post.isMuted ? "Unmute" : "Mute"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDeletePost}
+                    isLoading={adminActionLoading === "delete"}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    Delete
+                  </Button>
+                </div>
               )}
             </div>
 

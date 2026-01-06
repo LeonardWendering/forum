@@ -161,6 +161,7 @@ export class ThreadsService {
           id: thread.id,
           title: thread.title,
           author: thread.author,
+          isMuted: thread.isMuted,
           isPinned: thread.isPinned,
           isLocked: thread.isLocked,
           createdAt: thread.createdAt,
@@ -206,11 +207,16 @@ export class ThreadsService {
       throw new NotFoundException("Thread not found");
     }
 
+    if (thread.isMuted && userRole !== UserRole.ADMIN) {
+      throw new NotFoundException("Thread not found");
+    }
+
     return {
       id: thread.id,
       title: thread.title,
       author: thread.author,
       subcommunity: thread.subcommunity,
+      isMuted: thread.isMuted,
       isPinned: thread.isPinned,
       isLocked: thread.isLocked,
       createdAt: thread.createdAt,

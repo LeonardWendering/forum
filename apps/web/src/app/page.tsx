@@ -3,29 +3,27 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
-import { profileApi } from "@/lib/forum-api";
+import { postApi } from "@/lib/forum-api";
+import { Header } from "@/components/layout/header";
 import { Button, Card, CardContent } from "@/components/ui";
 import type { UserPost } from "@/lib/forum-types";
 
 export default function HomePage() {
-  const { user, isLoading, isAuthenticated, logout } = useAuth();
-  const [recentPosts, setRecentPosts] = useState<UserPost[]>([]);
+  const { isLoading, isAuthenticated } = useAuth();
+  const [latestPosts, setLatestPosts] = useState<UserPost[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated && user) {
-      loadRecentPosts();
-    }
-  }, [isAuthenticated, user]);
+    loadLatestPosts();
+  }, []);
 
-  const loadRecentPosts = async () => {
-    if (!user) return;
+  const loadLatestPosts = async () => {
     setIsLoadingPosts(true);
     try {
-      const data = await profileApi.getUserPosts(user.id, 1, 2);
-      setRecentPosts(data.posts);
+      const data = await postApi.listRecent(2);
+      setLatestPosts(data);
     } catch (err) {
-      console.error("Failed to load recent posts", err);
+      console.error("Failed to load latest posts", err);
     } finally {
       setIsLoadingPosts(false);
     }
@@ -33,52 +31,7 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <header className="border-b border-gray-200 bg-white">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900">Forum</h1>
-
-          <nav className="flex items-center gap-4">
-            {isLoading ? (
-              <div className="h-9 w-24 bg-gray-200 animate-pulse rounded-lg" />
-            ) : isAuthenticated && user ? (
-              <div className="flex items-center gap-4">
-                <Link href="/communities" className="text-sm text-gray-600 hover:text-gray-900">
-                  Communities
-                </Link>
-                <Link href="/messages" className="text-sm text-gray-600 hover:text-gray-900">
-                  Messages
-                </Link>
-                {user.role === "ADMIN" && (
-                  <Link href="/admin" className="text-sm text-purple-600 hover:text-purple-800 font-medium">
-                    Admin
-                  </Link>
-                )}
-                <span className="text-sm text-gray-600">
-                  Welcome, <Link href={`/u/${user.id}`} className="font-medium text-gray-900 hover:text-blue-600">{user.displayName}</Link>
-                  {user.role === "ADMIN" && (
-                    <span className="ml-2 px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded">ADMIN</span>
-                  )}
-                </span>
-                <Button variant="outline" size="sm" onClick={() => logout()}>
-                  Logout
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Link href="/login">
-                  <Button variant="ghost" size="sm">
-                    Sign in
-                  </Button>
-                </Link>
-                <Link href="/register">
-                  <Button size="sm">Sign up</Button>
-                </Link>
-              </div>
-            )}
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-4 py-16 text-center">
@@ -106,59 +59,56 @@ export default function HomePage() {
           </div>
         )}
 
-        {isAuthenticated && user && (
-          <div className="flex flex-col items-center gap-6">
-            <div className="flex items-center justify-center gap-4">
-              <Link href="/communities">
-                <Button size="lg">Browse Communities</Button>
-              </Link>
-              <Link href="/messages">
-                <Button variant="outline" size="lg">Messages</Button>
-              </Link>
-            </div>
-
-            {/* User Card with Recent Posts */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 max-w-md w-full text-left">
-              <div className="flex items-center gap-3 mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {user.displayName}
-                </h3>
-                {user.role === "ADMIN" && (
-                  <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 rounded font-medium">ADMIN</span>
-                )}
-              </div>
-
-              <div className="border-t border-gray-100 pt-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Your Recent Posts</h4>
-                {isLoadingPosts ? (
-                  <div className="animate-pulse space-y-3">
-                    <div className="h-16 bg-gray-100 rounded" />
-                    <div className="h-16 bg-gray-100 rounded" />
-                  </div>
-                ) : recentPosts.length === 0 ? (
-                  <p className="text-sm text-gray-500 italic">Here will appear your posts.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {recentPosts.map((post) => (
-                      <Link key={post.id} href={`/t/${post.thread.id}`}>
-                        <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
-                          <CardContent className="p-3">
-                            <div className="text-xs text-gray-500 mb-1">
-                              <span className="text-blue-600">{post.thread.subcommunity.name}</span>
-                              {" / "}
-                              {post.thread.title}
-                            </div>
-                            <p className="text-sm text-gray-800 line-clamp-2">{post.content}</p>
-                          </CardContent>
-                        </Card>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+        {isAuthenticated && (
+          <div className="flex items-center justify-center gap-4">
+            <Link href="/communities">
+              <Button size="lg">Browse Communities</Button>
+            </Link>
+            <Link href="/messages">
+              <Button variant="outline" size="lg">Messages</Button>
+            </Link>
           </div>
         )}
+      </section>
+
+      {/* Latest Posts */}
+      <section className="max-w-6xl mx-auto px-4 pb-16">
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Latest Posts</h3>
+            <Link href="/communities" className="text-sm text-blue-600 hover:text-blue-800">
+              Explore communities
+            </Link>
+          </div>
+          {isLoadingPosts ? (
+            <div className="animate-pulse space-y-3">
+              <div className="h-16 bg-gray-100 rounded" />
+              <div className="h-16 bg-gray-100 rounded" />
+            </div>
+          ) : latestPosts.length === 0 ? (
+            <p className="text-sm text-gray-500 italic">No posts yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {latestPosts.map((post) => (
+                <Link key={post.id} href={`/t/${post.thread.id}`} className="block">
+                  <Card className="hover:bg-gray-50 transition-colors cursor-pointer">
+                    <CardContent className="p-4">
+                      <div className="text-xs text-gray-500 mb-1">
+                        <span className="text-blue-600">{post.thread.subcommunity.name}</span>
+                        {" / "}
+                        {post.thread.title}
+                      </div>
+                      <p className="text-sm text-gray-800 line-clamp-2">{post.content}</p>
+                      <div className="mt-2 text-xs text-gray-500">
+                        by {post.author.displayName}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Features */}

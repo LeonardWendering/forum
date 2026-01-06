@@ -7,20 +7,7 @@ import { useAuth } from "@/context/auth-context";
 import { adminApi } from "@/lib/forum-api";
 import { ApiClientError } from "@/lib/api";
 import { Button, Card, CardContent, Alert, Input } from "@/components/ui";
-
-interface AdminUser {
-  id: string;
-  email: string;
-  displayName: string;
-  role: string;
-  status: string;
-  isRestricted: boolean;
-  createdAt: string;
-  _count?: {
-    posts: number;
-    memberships: number;
-  };
-}
+import type { AdminUser } from "@/lib/forum-types";
 
 interface UserListResponse {
   users: AdminUser[];

@@ -29,12 +29,20 @@ export function Header() {
                 Messages
               </Link>
               {user?.role === "ADMIN" && (
-                <Link
-                  href="/admin"
-                  className="text-sm text-purple-600 hover:text-purple-800 font-medium transition-colors"
-                >
-                  Admin
-                </Link>
+                <>
+                  <Link
+                    href="/admin"
+                    className="text-sm text-purple-600 hover:text-purple-800 font-medium transition-colors"
+                  >
+                    Admin
+                  </Link>
+                  <Link
+                    href="/admin/invite-codes"
+                    className="text-sm text-purple-600 hover:text-purple-800 font-medium transition-colors"
+                  >
+                    Invite
+                  </Link>
+                </>
               )}
             </nav>
           )}

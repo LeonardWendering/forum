@@ -3,6 +3,7 @@ import { ProfileService } from "./profile.service";
 import { UpdateAvatarDto } from "./dto/update-avatar.dto";
 import { CurrentUser } from "../auth/decorators/current-user.decorator";
 import { Public } from "../auth/decorators/public.decorator";
+import type { PublicUser } from "../auth/auth.types";
 
 @Controller()
 export class ProfileController {
@@ -50,6 +51,22 @@ export class ProfileController {
       userId,
       page ? parseInt(page, 10) : 1,
       limit ? parseInt(limit, 10) : 20
+    );
+  }
+
+  @Get("users/:userId/threads")
+  @Public()
+  async getUserThreads(
+    @Param("userId") userId: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+    @CurrentUser() user?: PublicUser
+  ) {
+    return this.profileService.getUserThreads(
+      userId,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 20,
+      user?.role
     );
   }
 

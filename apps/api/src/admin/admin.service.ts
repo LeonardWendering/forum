@@ -114,6 +114,27 @@ export class AdminService {
   // User Management
   // ============================================
 
+  async getUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        role: true,
+        status: true,
+        isRestricted: true,
+        createdAt: true
+      }
+    });
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    return user;
+  }
+
   async suspendUser(userId: string, adminId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId }

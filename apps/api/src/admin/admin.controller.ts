@@ -61,6 +61,11 @@ export class AdminController {
     );
   }
 
+  @Get("users/:userId")
+  getUser(@Param("userId") userId: string) {
+    return this.adminService.getUser(userId);
+  }
+
   @Patch("users/:userId/suspend")
   suspendUser(
     @Param("userId") userId: string,

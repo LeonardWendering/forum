@@ -2,23 +2,26 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
-import { threadApi, postApi } from "@/lib/forum-api";
+import { adminApi, threadApi, postApi } from "@/lib/forum-api";
 import { ApiClientError } from "@/lib/api";
 import { PostCard, PostComposer } from "@/components/forum";
-import { Alert } from "@/components/ui";
+import { Alert, Button } from "@/components/ui";
 import type { Thread, Post } from "@/lib/forum-types";
 
 export default function ThreadPage() {
   const params = useParams();
   const threadId = params.threadId as string;
-  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+  const { isAuthenticated, user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
 
   const [thread, setThread] = useState<Thread | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [adminActionLoading, setAdminActionLoading] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -51,6 +54,41 @@ export default function ThreadPage() {
   const handleReply = async (parentId: string, content: string) => {
     await postApi.create(threadId, { content, parentId });
     await loadData();
+  };
+
+  const handleToggleThreadMute = async () => {
+    if (!thread || !isAdmin) return;
+    setAdminActionLoading("mute");
+    try {
+      if (thread.isMuted) {
+        await adminApi.unmuteThread(thread.id);
+      } else {
+        await adminApi.muteThread(thread.id);
+      }
+      await loadData();
+    } catch (err) {
+      console.error("Failed to update thread moderation status", err);
+    } finally {
+      setAdminActionLoading(null);
+    }
+  };
+
+  const handleDeleteThread = async () => {
+    if (!thread) return;
+    if (!confirm(`Delete "${thread.title}"? This cannot be undone.`)) return;
+    setAdminActionLoading("delete");
+    try {
+      await threadApi.delete(thread.id);
+      if (thread.subcommunity) {
+        router.push(`/c/${thread.subcommunity.slug}`);
+      } else {
+        router.push("/communities");
+      }
+    } catch (err) {
+      console.error("Failed to delete thread", err);
+    } finally {
+      setAdminActionLoading(null);
+    }
   };
 
   if (isLoading) {
@@ -96,38 +134,68 @@ export default function ThreadPage() {
           </Link>
         )}
 
-        <div className="flex items-start gap-3">
-          {thread.isPinned && (
-            <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded mt-1">
-              Pinned
-            </span>
-          )}
-          {thread.isLocked && (
-            <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded mt-1">
-              Locked
-            </span>
-          )}
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{thread.title}</h1>
-            <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
-              <span>by{" "}
-                <Link
-                  href={`/u/${thread.author.id}`}
-                  className="text-gray-700 hover:text-blue-600 transition-colors"
-                >
-                  {thread.author.displayName}
-                </Link>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            {thread.isPinned && (
+              <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded mt-1">
+                Pinned
               </span>
-              <span>
-                {new Date(thread.createdAt).toLocaleDateString()} at{" "}
-                {new Date(thread.createdAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit"
-                })}
+            )}
+            {thread.isLocked && (
+              <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded mt-1">
+                Locked
               </span>
-              <span>{thread.postCount} {thread.postCount === 1 ? "post" : "posts"}</span>
+            )}
+            {thread.isMuted && (
+              <span className="text-xs font-medium text-red-600 bg-red-100 px-2 py-1 rounded mt-1">
+                Muted
+              </span>
+            )}
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{thread.title}</h1>
+              <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
+                <span>by{" "}
+                  <Link
+                    href={`/u/${thread.author.id}`}
+                    className="text-gray-700 hover:text-blue-600 transition-colors"
+                  >
+                    {thread.author.displayName}
+                  </Link>
+                </span>
+                <span>
+                  {new Date(thread.createdAt).toLocaleDateString()} at{" "}
+                  {new Date(thread.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  })}
+                </span>
+                <span>{thread.postCount} {thread.postCount === 1 ? "post" : "posts"}</span>
+              </div>
             </div>
           </div>
+
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleToggleThreadMute}
+                isLoading={adminActionLoading === "mute"}
+                className={thread.isMuted ? "text-green-600 hover:text-green-700 hover:bg-green-50" : "text-amber-600 hover:text-amber-700 hover:bg-amber-50"}
+              >
+                {thread.isMuted ? "Unmute" : "Mute"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDeleteThread}
+                isLoading={adminActionLoading === "delete"}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                Delete
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

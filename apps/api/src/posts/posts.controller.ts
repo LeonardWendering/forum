@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards
 } from "@nestjs/common";
 import { PostsService } from "./posts.service";
@@ -36,6 +37,21 @@ export class PostsController {
     @CurrentUser() user?: PublicUser
   ) {
     return this.postsService.findByThread(threadId, user?.id, user?.role);
+  }
+
+  @Get("posts/recent")
+  @Public()
+  findRecent(
+    @Query("limit") limit?: string,
+    @CurrentUser() user?: PublicUser
+  ) {
+    return this.postsService.findRecent(
+      limit ? parseInt(limit, 10) : 2,
+      user?.id,
+      user?.role,
+      user?.isRestricted,
+      user?.restrictedToSubcommunityId
+    );
   }
 
   @Get("posts/:id")

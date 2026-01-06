@@ -221,7 +221,13 @@ export default function SubcommunityPage() {
                 </Link>
               </div>
             )}
-            {threads.map((thread) => <ThreadCard key={thread.id} thread={thread} />)}
+            {threads.map((thread) => (
+              <ThreadCard
+                key={thread.id}
+                thread={thread}
+                onThreadUpdated={() => loadData(pagination.page)}
+              />
+            ))}
           </>
         )}
       </div>

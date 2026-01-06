@@ -61,6 +61,7 @@ export interface Thread {
     name: string;
     slug: string;
   };
+  isMuted?: boolean;
   isPinned: boolean;
   isLocked: boolean;
   createdAt: string;
@@ -84,6 +85,7 @@ export interface CreateThreadRequest {
 export interface Post {
   id: string;
   content: string;
+  isMuted?: boolean;
   author: {
     id: string;
     displayName: string;
@@ -212,6 +214,7 @@ export interface UserPost {
   id: string;
   content: string;
   createdAt: string;
+  isMuted?: boolean;
   thread: {
     id: string;
     title: string;
@@ -260,6 +263,20 @@ export interface CreateInviteCodeRequest {
   isRestricted?: boolean;
   usesRemaining?: number;
   expiresAt?: string;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  displayName: string;
+  role: string;
+  status: string;
+  isRestricted: boolean;
+  createdAt: string;
+  _count?: {
+    posts: number;
+    memberships: number;
+  };
 }
 
 export interface ValidateInviteCodeResponse {

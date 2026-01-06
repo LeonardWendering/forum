@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
 import { UpdateAvatarDto } from "./dto/update-avatar.dto";
-import { AvatarAccessory } from "@prisma/client";
+import { AvatarAccessory, UserRole } from "@prisma/client";
 
 @Injectable()
 export class ProfileService {
@@ -217,6 +217,73 @@ export class ProfileService {
             accessory: post.author.profile.avatarAccessory
           } : null
         }
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  }
+
+  async getUserThreads(
+    userId: string,
+    page = 1,
+    limit = 20,
+    viewerRole?: UserRole
+  ) {
+    const skip = (page - 1) * limit;
+    const isAdmin = viewerRole === UserRole.ADMIN;
+
+    const whereClause = {
+      OR: [
+        { authorId: userId },
+        { posts: { some: { authorId: userId, deletedAt: null } } }
+      ],
+      ...(isAdmin ? {} : { isMuted: false })
+    };
+
+    const [threads, total] = await Promise.all([
+      this.prisma.thread.findMany({
+        where: whereClause,
+        include: {
+          author: {
+            select: {
+              id: true,
+              displayName: true
+            }
+          },
+          subcommunity: {
+            select: {
+              id: true,
+              name: true,
+              slug: true
+            }
+          },
+          _count: {
+            select: { posts: true }
+          }
+        },
+        orderBy: { updatedAt: "desc" },
+        skip,
+        take: limit
+      }),
+      this.prisma.thread.count({ where: whereClause })
+    ]);
+
+    return {
+      threads: threads.map((thread) => ({
+        id: thread.id,
+        title: thread.title,
+        author: thread.author,
+        subcommunity: thread.subcommunity,
+        isMuted: thread.isMuted,
+        isPinned: thread.isPinned,
+        isLocked: thread.isLocked,
+        createdAt: thread.createdAt,
+        updatedAt: thread.updatedAt,
+        postCount: thread._count.posts
       })),
       pagination: {
         page,
