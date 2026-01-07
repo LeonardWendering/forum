@@ -70,7 +70,7 @@ export class ActivityService {
     userId: string,
     postId: string,
     threadId: string,
-    metadata?: Record<string, unknown>
+    metadata?: { parentId?: string | null }
   ): Promise<void> {
     if (!(await this.shouldTrackUser(userId))) {
       return;
@@ -82,7 +82,7 @@ export class ActivityService {
         activityType: ActivityType.POST_CREATE,
         postId,
         threadId,
-        metadata: metadata || {}
+        metadata: metadata ? JSON.parse(JSON.stringify(metadata)) : undefined
       }
     });
   }
