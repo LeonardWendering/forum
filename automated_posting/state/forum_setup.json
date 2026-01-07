@@ -1,55 +1,62 @@
 {
   "communities": {
     "community_0": {
-      "id": "cmk2xb3vc0002a4g77u002ufu",
-      "name": "BirchFields",
-      "slug": "birch-fields",
-      "invite_code": "D5LSW4BB",
+      "id": "cmk2xr01d0002avnaldny1cqj",
+      "name": "DuskValley",
+      "slug": "dusk-valley",
+      "invite_code": "SSM0QQYC",
       "password": null
     }
   },
   "bots": {
     "community_0_bot_0": {
-      "id": "cmk2xb4zk0009a4g7jqh2dj0d",
-      "display_name": "LivelyRiver",
-      "email": "bot_uEV10g8L5TMT@bot.local",
-      "community_id": "cmk2xb3vc0002a4g77u002ufu",
-      "community_slug": "birch-fields"
+      "id": "cmk2xr19x0009avnahaeuq7rw",
+      "display_name": "LivelyHawk",
+      "email": "bot_2Gwm9sjpWoK7@bot.local",
+      "community_id": "cmk2xr01d0002avnaldny1cqj",
+      "community_slug": "dusk-valley"
     },
     "community_0_bot_1": {
-      "id": "cmk2xb67q000ea4g79tiwrhh0",
-      "display_name": "LivelyPebble",
-      "email": "bot_GdUgpO6m3dAR@bot.local",
-      "community_id": "cmk2xb3vc0002a4g77u002ufu",
-      "community_slug": "birch-fields"
+      "id": "cmk2xr2fo000eavnawk67uao4",
+      "display_name": "BrightStone",
+      "email": "bot_SRZHIfS517bC@bot.local",
+      "community_id": "cmk2xr01d0002avnaldny1cqj",
+      "community_slug": "dusk-valley"
     },
     "community_0_bot_2": {
-      "id": "cmk2xb7df000ja4g78v8kdccm",
-      "display_name": "JollyBirch",
-      "email": "bot_YQEgYY93QP9S@bot.local",
-      "community_id": "cmk2xb3vc0002a4g77u002ufu",
-      "community_slug": "birch-fields"
+      "id": "cmk2xr3is000javna7dhk285c",
+      "display_name": "CheerfulMoss",
+      "email": "bot__L4eT-yBfKbr@bot.local",
+      "community_id": "cmk2xr01d0002avnaldny1cqj",
+      "community_slug": "dusk-valley"
     },
     "community_0_bot_3": {
-      "id": "cmk2xb8j4000oa4g79ddkbdfi",
-      "display_name": "GentleOak",
-      "email": "bot_J9QTdA7-2i2C@bot.local",
-      "community_id": "cmk2xb3vc0002a4g77u002ufu",
-      "community_slug": "birch-fields"
+      "id": "cmk2xr4qz000oavnayf1n0kl8",
+      "display_name": "BoldMoss",
+      "email": "bot_zX6y_KmrhCXh@bot.local",
+      "community_id": "cmk2xr01d0002avnaldny1cqj",
+      "community_slug": "dusk-valley"
     },
     "community_0_bot_4": {
-      "id": "cmk2xb9op000ta4g7hkv7zv2a",
-      "display_name": "HappyStone",
-      "email": "bot_K3ok1CTAVTpg@bot.local",
-      "community_id": "cmk2xb3vc0002a4g77u002ufu",
-      "community_slug": "birch-fields"
+      "id": "cmk2xr5wm000tavna55i5vxk1",
+      "display_name": "BrightRiver",
+      "email": "bot_PSW2YGQFQuCW@bot.local",
+      "community_id": "cmk2xr01d0002avnaldny1cqj",
+      "community_slug": "dusk-valley"
     }
   },
   "account_mapping": {
-    "LivelyRiver": "cmk2xb4zk0009a4g7jqh2dj0d",
-    "LivelyPebble": "cmk2xb67q000ea4g79tiwrhh0",
-    "JollyBirch": "cmk2xb7df000ja4g78v8kdccm",
-    "GentleOak": "cmk2xb8j4000oa4g79ddkbdfi",
-    "HappyStone": "cmk2xb9op000ta4g7hkv7zv2a"
+    "LivelyHawk": "cmk2xr19x0009avnahaeuq7rw",
+    "BrightStone": "cmk2xr2fo000eavnawk67uao4",
+    "CheerfulMoss": "cmk2xr3is000javna7dhk285c",
+    "BoldMoss": "cmk2xr4qz000oavnayf1n0kl8",
+    "BrightRiver": "cmk2xr5wm000tavna55i5vxk1"
+  },
+  "bot_tokens": {
+    "cmk2xr19x0009avnahaeuq7rw": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWsyeHIxOXgwMDA5YXZuYWhhZXVxN3J3Iiwicm9sZSI6Ik1FTUJFUiIsImlzQm90Ijp0cnVlLCJpYXQiOjE3Njc3MjQ4NzcsImV4cCI6MTc5OTI2MDg3N30.x47DJowMFlaZXUr4SyzT8qLck1we39VUqlwpDVRMxHg",
+    "cmk2xr2fo000eavnawk67uao4": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWsyeHIyZm8wMDBlYXZuYXdrNjd1YW80Iiwicm9sZSI6Ik1FTUJFUiIsImlzQm90Ijp0cnVlLCJpYXQiOjE3Njc3MjQ4NzksImV4cCI6MTc5OTI2MDg3OX0.7w5gcRTLgeKrPDsemNrsBU4ENotllenjycP11LsVYM4",
+    "cmk2xr3is000javna7dhk285c": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWsyeHIzaXMwMDBqYXZuYTdkaGsyODVjIiwicm9sZSI6Ik1FTUJFUiIsImlzQm90Ijp0cnVlLCJpYXQiOjE3Njc3MjQ4ODAsImV4cCI6MTc5OTI2MDg4MH0.YbP1gIU50rcoxx_ymM8xFHk1afYjNTW8HBsS8mLMojY",
+    "cmk2xr4qz000oavnayf1n0kl8": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWsyeHI0cXowMDBvYXZuYXlmMW4wa2w4Iiwicm9sZSI6Ik1FTUJFUiIsImlzQm90Ijp0cnVlLCJpYXQiOjE3Njc3MjQ4ODIsImV4cCI6MTc5OTI2MDg4Mn0.HQSyWmHKwNojL_g8PQk3dFci9OANgIR-mj2ymrWlcdk",
+    "cmk2xr5wm000tavna55i5vxk1": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbWsyeHI1d20wMDB0YXZuYTU1aTV2eGsxIiwicm9sZSI6Ik1FTUJFUiIsImlzQm90Ijp0cnVlLCJpYXQiOjE3Njc3MjQ4ODMsImV4cCI6MTc5OTI2MDg4M30.-bbQT_v97MSCmeaSfW4o8c6T2yN2eIIILBfjbgD1IoA"
   }
 }

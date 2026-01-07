@@ -421,26 +421,31 @@ export default function UserProfilePage() {
           >
             Communities
           </button>
-          <button
-            onClick={() => setActiveTab("threads")}
-            className={`py-3 border-b-2 font-medium text-sm ${
-              activeTab === "threads"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Threads
-          </button>
-          <button
-            onClick={() => setActiveTab("posts")}
-            className={`py-3 border-b-2 font-medium text-sm ${
-              activeTab === "posts"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Posts
-          </button>
+          {/* Only show Threads and Posts tabs for own profile */}
+          {isOwnProfile && (
+            <>
+              <button
+                onClick={() => setActiveTab("threads")}
+                className={`py-3 border-b-2 font-medium text-sm ${
+                  activeTab === "threads"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Threads
+              </button>
+              <button
+                onClick={() => setActiveTab("posts")}
+                className={`py-3 border-b-2 font-medium text-sm ${
+                  activeTab === "posts"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Posts
+              </button>
+            </>
+          )}
         </nav>
       </div>
 
@@ -505,11 +510,11 @@ export default function UserProfilePage() {
               </div>
             ) : (
               <p className="text-gray-500">
-                View {profile.displayName}&apos;s communities, threads, and posts using the tabs above.
+                View {profile.displayName}&apos;s communities using the tabs above.
               </p>
             )}
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className={`mt-6 grid gap-4 ${isOwnProfile ? 'md:grid-cols-2' : 'md:grid-cols-1'}`}>
               <div className="rounded-lg border border-gray-100 p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-gray-900">Communities</h3>
@@ -546,43 +551,46 @@ export default function UserProfilePage() {
                 )}
               </div>
 
-              <div className="rounded-lg border border-gray-100 p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-900">Recent Posts</h3>
-                  <button
-                    onClick={() => setActiveTab("posts")}
-                    className="text-xs text-blue-600 hover:text-blue-800"
-                  >
-                    View all
-                  </button>
+              {/* Only show Recent Posts panel for own profile */}
+              {isOwnProfile && (
+                <div className="rounded-lg border border-gray-100 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-gray-900">Recent Posts</h3>
+                    <button
+                      onClick={() => setActiveTab("posts")}
+                      className="text-xs text-blue-600 hover:text-blue-800"
+                    >
+                      View all
+                    </button>
+                  </div>
+                  {isLoadingPosts ? (
+                    <div className="animate-pulse space-y-2">
+                      <div className="h-4 bg-gray-100 rounded" />
+                      <div className="h-4 bg-gray-100 rounded" />
+                      <div className="h-4 bg-gray-100 rounded" />
+                    </div>
+                  ) : postsError ? (
+                    <Alert variant="error">{postsError}</Alert>
+                  ) : posts.length === 0 ? (
+                    <p className="text-sm text-gray-500">No posts yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {posts.slice(0, 3).map((post) => (
+                        <Link
+                          key={post.id}
+                          href={`/t/${post.thread.id}`}
+                          className="block text-sm text-gray-800 hover:text-blue-600"
+                        >
+                          <div className="text-xs text-gray-500">
+                            {post.thread.subcommunity.name} / {post.thread.title}
+                          </div>
+                          <div className="line-clamp-2">{post.content}</div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {isLoadingPosts ? (
-                  <div className="animate-pulse space-y-2">
-                    <div className="h-4 bg-gray-100 rounded" />
-                    <div className="h-4 bg-gray-100 rounded" />
-                    <div className="h-4 bg-gray-100 rounded" />
-                  </div>
-                ) : postsError ? (
-                  <Alert variant="error">{postsError}</Alert>
-                ) : posts.length === 0 ? (
-                  <p className="text-sm text-gray-500">No posts yet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {posts.slice(0, 3).map((post) => (
-                      <Link
-                        key={post.id}
-                        href={`/t/${post.thread.id}`}
-                        className="block text-sm text-gray-800 hover:text-blue-600"
-                      >
-                        <div className="text-xs text-gray-500">
-                          {post.thread.subcommunity.name} / {post.thread.title}
-                        </div>
-                        <div className="line-clamp-2">{post.content}</div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -639,7 +647,8 @@ export default function UserProfilePage() {
         </div>
       )}
 
-      {activeTab === "threads" && (
+      {/* Threads tab - only for own profile */}
+      {activeTab === "threads" && isOwnProfile && (
         <div>
           {isLoadingThreads ? (
             <div className="animate-pulse space-y-4">
@@ -694,7 +703,8 @@ export default function UserProfilePage() {
         </div>
       )}
 
-      {activeTab === "posts" && (
+      {/* Posts tab - only for own profile */}
+      {activeTab === "posts" && isOwnProfile && (
         <div>
           {isLoadingPosts ? (
             <div className="animate-pulse space-y-4">

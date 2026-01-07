@@ -71,6 +71,9 @@ model User {
   mutedSubcommunities Subcommunity[] @relation("MutedSubcommunities")
   mutedThreads        Thread[]       @relation("MutedThreads")
   mutedPosts          Post[]         @relation("MutedPosts")
+
+  // Activity tracking (for research)
+  activityLogs        ActivityLog[]
 }
 
 enum AvatarBodyType {
@@ -322,4 +325,44 @@ model InviteCode {
   @@index([code])
   @@index([subcommunityId])
   @@index([createdById])
+}
+
+// ============================================
+// Activity Tracking (for research - bot users only)
+// ============================================
+
+enum ActivityType {
+  THREAD_VIEW
+  POST_CREATE
+  MESSAGE_SEND
+  MESSAGE_READ
+}
+
+model ActivityLog {
+  id            String       @id @default(cuid())
+  userId        String       @map("user_id")
+  activityType  ActivityType @map("activity_type")
+
+  // Reference IDs (depending on activity type)
+  threadId      String?      @map("thread_id")
+  postId        String?      @map("post_id")
+  messageId     String?      @map("message_id")
+  conversationId String?     @map("conversation_id")
+
+  // Duration tracking (for views)
+  startedAt     DateTime     @default(now()) @map("started_at")
+  endedAt       DateTime?    @map("ended_at")
+  durationMs    Int?         @map("duration_ms")
+
+  // Additional metadata
+  metadata      Json?        @default("{}")
+
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([activityType])
+  @@index([threadId])
+  @@index([createdAt])
 }

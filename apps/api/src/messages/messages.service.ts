@@ -5,11 +5,15 @@ import {
   BadRequestException
 } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
+import { ActivityService } from "../activity/activity.service";
 import { CreateConversationDto, SendMessageDto } from "./dto";
 
 @Injectable()
 export class MessagesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activityService: ActivityService
+  ) {}
 
   async createConversation(dto: CreateConversationDto, userId: string) {
     if (dto.recipientId === userId) {
@@ -307,6 +311,9 @@ export class MessagesService {
 
       return msg;
     });
+
+    // Log activity for non-self-created users
+    await this.activityService.logMessageSend(userId, message.id, conversationId);
 
     return {
       id: message.id,

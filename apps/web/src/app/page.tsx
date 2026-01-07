@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/auth-context";
-import { postApi, profileApi } from "@/lib/forum-api";
+import { postApi } from "@/lib/forum-api";
 import { Header } from "@/components/layout/header";
 import { Button, Card, CardContent } from "@/components/ui";
 import type { UserPost } from "@/lib/forum-types";
@@ -16,27 +16,9 @@ export default function HomePage() {
   const [postsError, setPostsError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isAuthenticated && user) {
-      loadUserPosts(user.id);
-      return;
-    }
+    // Always load latest posts for all users (visible ones)
     loadLatestPosts();
-  }, [isAuthenticated, user]);
-
-  const loadUserPosts = async (userId: string) => {
-    setIsLoadingPosts(true);
-    setPostsError(null);
-    setPostsTitle("Your Recent Posts");
-    try {
-      const data = await profileApi.getUserPosts(userId, 1, 2);
-      setLatestPosts(data.posts);
-    } catch (err) {
-      console.error("Failed to load user posts", err);
-      setPostsError("Failed to load your posts.");
-    } finally {
-      setIsLoadingPosts(false);
-    }
-  };
+  }, [isAuthenticated]);
 
   const loadLatestPosts = async () => {
     setIsLoadingPosts(true);

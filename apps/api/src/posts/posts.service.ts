@@ -5,12 +5,16 @@ import {
   BadRequestException
 } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
+import { ActivityService } from "../activity/activity.service";
 import { CreatePostDto, UpdatePostDto, VoteDto } from "./dto";
 import { SubcommunityType, UserRole } from "@prisma/client";
 
 @Injectable()
 export class PostsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly activityService: ActivityService
+  ) {}
 
   async create(threadId: string, dto: CreatePostDto, userId: string) {
     const thread = await this.prisma.thread.findUnique({
@@ -52,6 +56,11 @@ export class PostsService {
           }
         }
       }
+    });
+
+    // Log activity for non-self-created users (bots)
+    await this.activityService.logPostCreate(userId, post.id, threadId, {
+      parentId: dto.parentId || null
     });
 
     return {

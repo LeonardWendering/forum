@@ -169,10 +169,11 @@ def run_schedule(provider: ForumProvider, config: Dict, schedule_file: str) -> N
     - datetime: Date in YYYY-MM-DD format
     - time: Time in HH:MM format
     - account: Bot persona name (maps to bot ID via account_mapping)
+                "Researchers" is a special account that uses the admin token
     - title: Thread title (for new threads)
     - body: Post content
-    - kind: "self" for new thread, "comment" for reply
-    - reply_to: Hierarchical reference (0, 1, 1.1, 2.1.1, etc.)
+    - kind: "self" for new thread (ONLY Researchers), "comment" for reply
+    - reply_to: Hierarchical reference (0 = thread, 1 = first top-level reply, 1.1 = reply to 1, etc.)
     - community: Community slug (optional, uses default if not specified)
     """
     logger.info(f"Running schedule from {schedule_file}")
@@ -193,7 +194,8 @@ def run_schedule(provider: ForumProvider, config: Dict, schedule_file: str) -> N
     sleep_between = config.get("sleep_between_posts_seconds", 3)
 
     # Track created posts for reply_to references
-    post_refs: Dict[str, str] = {}  # reply_to reference -> post_id
+    # Key format: "0" for thread, "1", "2" for top-level replies, "1.1" for nested replies
+    post_refs: Dict[str, Dict[str, str]] = {}  # reference -> {"thread_id": ..., "post_id": ...}
 
     with open(schedule_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -210,78 +212,125 @@ def run_schedule(provider: ForumProvider, config: Dict, schedule_file: str) -> N
             reply_to = row.get("reply_to", "").strip()
             community_slug = row.get("community", "").strip()
 
-            # Map account name to bot ID
-            bot_id = state.get("account_mapping", {}).get(account_name)
-            if not bot_id:
-                logger.warning(f"Unknown account: {account_name}, skipping...")
+            # Skip empty body
+            if not body:
+                logger.warning(f"Empty body for {account_name}, skipping...")
                 continue
 
-            # Get bot token (need to implement token retrieval)
-            # For now, we'd need to login as the bot or use admin impersonation
-            bot_token = state.get("bot_tokens", {}).get(bot_id)
-            if not bot_token:
-                logger.warning(f"No token for bot {account_name}, skipping...")
-                continue
-
-            provider.set_bot_token(bot_id, bot_token)
-
-            # Get community slug from bot if not specified
+            # Get community slug from first community if not specified
             if not community_slug:
-                bot_info = state["bots"].get(f"community_0_bot_0")  # Default
-                if bot_info:
-                    community_slug = bot_info.get("community_slug")
+                communities = state.get("communities", {})
+                if communities:
+                    first_community = list(communities.values())[0]
+                    community_slug = first_community.get("slug")
 
             try:
                 if kind == "self":
-                    # Create new thread
-                    result = provider.submit_thread(
-                        bot_id=bot_id,
-                        subcommunity_slug=community_slug,
-                        title=title,
-                        content=body
+                    # Only Researchers can create threads
+                    if account_name.lower() != "researchers":
+                        logger.warning(f"Only Researchers can create threads, skipping {account_name}")
+                        continue
+
+                    # Use admin token for Researchers
+                    result = provider._make_request(
+                        "POST",
+                        f"/c/{community_slug}/threads",
+                        data={
+                            "title": title,
+                            "content": body
+                        }
                     )
+                    thread_id = result["id"]
+                    # Get the first post ID (the OP)
+                    posts_result = provider._make_request(
+                        "GET",
+                        f"/t/{thread_id}/posts"
+                    )
+                    post_id = posts_result[0]["id"] if posts_result else None
+
                     logger.info(f"Created thread: {title[:50]}... by {account_name}")
 
-                    # Store reference for replies
-                    ref_key = str(len(post_refs))
-                    post_refs[ref_key] = result["threadId"]
+                    # Store reference for "0" (the thread/OP)
+                    post_refs["0"] = {"thread_id": thread_id, "post_id": post_id}
 
                     log_post({
                         "timestamp": datetime.now().isoformat(),
                         "type": "thread",
                         "account": account_name,
-                        "thread_id": result["threadId"],
-                        "post_id": result["postId"]
+                        "thread_id": thread_id,
+                        "post_id": post_id,
+                        "ref": "0"
                     })
 
                 elif kind == "comment":
-                    # Create reply
-                    # Parse reply_to to get thread and parent post
-                    thread_id = post_refs.get(reply_to.split(".")[0])
-                    parent_id = post_refs.get(reply_to) if "." in reply_to else None
-
-                    if not thread_id:
-                        logger.warning(f"Invalid reply_to reference: {reply_to}")
+                    # Map account name to bot ID
+                    bot_id = state.get("account_mapping", {}).get(account_name)
+                    if not bot_id:
+                        logger.warning(f"Unknown account: {account_name}, skipping...")
                         continue
+
+                    # Get bot token
+                    bot_token = state.get("bot_tokens", {}).get(bot_id)
+                    if not bot_token:
+                        logger.warning(f"No token for bot {account_name}, skipping...")
+                        continue
+
+                    provider.set_bot_token(bot_id, bot_token)
+
+                    # Determine thread_id and parent_post_id from reply_to
+                    # reply_to = "0" means reply to thread (no parent)
+                    # reply_to = "1" means reply to post referenced by "1"
+                    # reply_to = "1.1" means reply to post referenced by "1.1"
+
+                    if reply_to == "0":
+                        # Reply directly to thread (top-level comment)
+                        if "0" not in post_refs:
+                            logger.warning(f"Thread not created yet (ref 0), skipping {account_name}")
+                            continue
+                        thread_id = post_refs["0"]["thread_id"]
+                        parent_post_id = None
+                    else:
+                        # Reply to another post
+                        if reply_to not in post_refs:
+                            logger.warning(f"Parent post not found (ref {reply_to}), skipping {account_name}")
+                            continue
+                        thread_id = post_refs["0"]["thread_id"]  # Thread is always from ref "0"
+                        parent_post_id = post_refs[reply_to]["post_id"]
 
                     result = provider.submit_reply(
                         bot_id=bot_id,
                         thread_id=thread_id,
                         content=body,
-                        parent_post_id=parent_id
+                        parent_post_id=parent_post_id
                     )
+                    post_id = result["postId"]
                     logger.info(f"Created reply by {account_name}")
 
-                    # Store reference
-                    post_refs[reply_to] = result["postId"]
+                    # Determine this post's reference ID
+                    # We need to find the next available ID in the hierarchy
+                    # For top-level (reply_to="0"), find next integer: 1, 2, 3...
+                    # For nested (reply_to="1"), find next: 1.1, 1.2...
+                    if reply_to == "0":
+                        # Find next top-level ID
+                        existing_top = [k for k in post_refs.keys() if k.isdigit() and k != "0"]
+                        next_id = str(len(existing_top) + 1)
+                    else:
+                        # Find next nested ID under reply_to
+                        prefix = reply_to + "."
+                        existing_nested = [k for k in post_refs.keys() if k.startswith(prefix)]
+                        next_num = len(existing_nested) + 1
+                        next_id = f"{reply_to}.{next_num}"
+
+                    post_refs[next_id] = {"thread_id": thread_id, "post_id": post_id}
 
                     log_post({
                         "timestamp": datetime.now().isoformat(),
                         "type": "comment",
                         "account": account_name,
                         "thread_id": thread_id,
-                        "post_id": result["postId"],
-                        "parent_id": parent_id
+                        "post_id": post_id,
+                        "parent_id": parent_post_id,
+                        "ref": next_id
                     })
 
                 time.sleep(sleep_between)
@@ -313,7 +362,12 @@ def run_watch(provider: ForumProvider, config: Dict, schedule_file: str) -> None
     Watch mode: continuously check for scheduled posts and execute them.
 
     Runs every minute, checks for posts due at the current time,
-    executes them in random order with random delays (2-7 seconds).
+    executes them in order (Researchers first, then bots) with random delays.
+
+    Key behavior:
+    - "Researchers" account creates threads using admin token
+    - Bot accounts only post comments/replies
+    - Posts are sorted so thread-creating posts (kind="self") execute first
     """
     logger.info(f"Starting watch mode for schedule: {schedule_file}")
     logger.info("Press Ctrl+C to stop")
@@ -328,7 +382,8 @@ def run_watch(provider: ForumProvider, config: Dict, schedule_file: str) -> None
     executed_posts = set()
 
     # Track created posts for reply_to references (persists across minutes)
-    post_refs: Dict[str, str] = {}
+    # Key format: "0" for thread, "1", "2" for top-level replies, "1.1" for nested
+    post_refs: Dict[str, Dict[str, str]] = {}
 
     try:
         while True:
@@ -355,8 +410,12 @@ def run_watch(provider: ForumProvider, config: Dict, schedule_file: str) -> None
             if due_posts:
                 logger.info(f"Found {len(due_posts)} posts to execute")
 
-                # Randomize order
-                random.shuffle(due_posts)
+                # Sort so "self" posts come first (thread creation before replies)
+                # Then randomize the remaining comments
+                self_posts = [(i, r, k) for i, r, k in due_posts if r.get("kind", "").strip() == "self"]
+                comment_posts = [(i, r, k) for i, r, k in due_posts if r.get("kind", "").strip() != "self"]
+                random.shuffle(comment_posts)
+                due_posts = self_posts + comment_posts
 
                 for idx, row, post_key in due_posts:
                     account_name = row.get("account", "").strip()
@@ -366,82 +425,122 @@ def run_watch(provider: ForumProvider, config: Dict, schedule_file: str) -> None
                     reply_to = row.get("reply_to", "").strip()
                     community_slug = row.get("community", "").strip()
 
-                    # Map account name to bot ID
-                    bot_id = state.get("account_mapping", {}).get(account_name)
-                    if not bot_id:
-                        logger.warning(f"Unknown account: {account_name}, skipping...")
+                    # Skip empty body
+                    if not body:
+                        logger.warning(f"Empty body for {account_name}, skipping...")
                         executed_posts.add(post_key)
                         continue
 
-                    # Get bot token
-                    bot_token = state.get("bot_tokens", {}).get(bot_id)
-                    if not bot_token:
-                        logger.warning(f"No token for bot {account_name}, skipping...")
-                        executed_posts.add(post_key)
-                        continue
-
-                    provider.set_bot_token(bot_id, bot_token)
-
-                    # Get community slug from bot if not specified
+                    # Get community slug from first community if not specified
                     if not community_slug:
-                        for bot_key, bot_info in state["bots"].items():
-                            if bot_info.get("id") == bot_id:
-                                community_slug = bot_info.get("community_slug")
-                                break
+                        communities = state.get("communities", {})
+                        if communities:
+                            first_community = list(communities.values())[0]
+                            community_slug = first_community.get("slug")
 
                     try:
                         if kind == "self":
-                            # Create new thread
-                            result = provider.submit_thread(
-                                bot_id=bot_id,
-                                subcommunity_slug=community_slug,
-                                title=title,
-                                content=body
+                            # Only Researchers can create threads
+                            if account_name.lower() != "researchers":
+                                logger.warning(f"Only Researchers can create threads, skipping {account_name}")
+                                executed_posts.add(post_key)
+                                continue
+
+                            # Use admin token for Researchers
+                            result = provider._make_request(
+                                "POST",
+                                f"/c/{community_slug}/threads",
+                                data={
+                                    "title": title,
+                                    "content": body
+                                }
                             )
+                            thread_id = result["id"]
+                            # Get the first post ID (the OP)
+                            posts_result = provider._make_request(
+                                "GET",
+                                f"/t/{thread_id}/posts"
+                            )
+                            post_id = posts_result[0]["id"] if posts_result else None
+
                             logger.info(f"Created thread: {title[:50]}... by {account_name}")
 
-                            # Store reference for replies using row index
-                            ref_key = str(idx)
-                            post_refs[ref_key] = result["threadId"]
+                            # Store reference for "0" (the thread/OP)
+                            post_refs["0"] = {"thread_id": thread_id, "post_id": post_id}
 
                             log_post({
                                 "timestamp": datetime.now().isoformat(),
                                 "type": "thread",
                                 "account": account_name,
-                                "thread_id": result["threadId"],
-                                "post_id": result["postId"]
+                                "thread_id": thread_id,
+                                "post_id": post_id,
+                                "ref": "0"
                             })
 
                         elif kind == "comment":
-                            # Create reply
-                            # Parse reply_to to get thread reference
-                            thread_ref = reply_to.split(".")[0]
-                            thread_id = post_refs.get(thread_ref)
-                            parent_id = post_refs.get(reply_to) if "." in reply_to else None
-
-                            if not thread_id:
-                                logger.warning(f"Invalid reply_to reference: {reply_to} (thread not found)")
+                            # Map account name to bot ID
+                            bot_id = state.get("account_mapping", {}).get(account_name)
+                            if not bot_id:
+                                logger.warning(f"Unknown account: {account_name}, skipping...")
                                 executed_posts.add(post_key)
                                 continue
+
+                            # Get bot token
+                            bot_token = state.get("bot_tokens", {}).get(bot_id)
+                            if not bot_token:
+                                logger.warning(f"No token for bot {account_name}, skipping...")
+                                executed_posts.add(post_key)
+                                continue
+
+                            provider.set_bot_token(bot_id, bot_token)
+
+                            # Determine thread_id and parent_post_id from reply_to
+                            if reply_to == "0":
+                                # Reply directly to thread (top-level comment)
+                                if "0" not in post_refs:
+                                    logger.warning(f"Thread not created yet (ref 0), skipping {account_name}")
+                                    executed_posts.add(post_key)
+                                    continue
+                                thread_id = post_refs["0"]["thread_id"]
+                                parent_post_id = None
+                            else:
+                                # Reply to another post
+                                if reply_to not in post_refs:
+                                    logger.warning(f"Parent post not found (ref {reply_to}), skipping {account_name}")
+                                    executed_posts.add(post_key)
+                                    continue
+                                thread_id = post_refs["0"]["thread_id"]
+                                parent_post_id = post_refs[reply_to]["post_id"]
 
                             result = provider.submit_reply(
                                 bot_id=bot_id,
                                 thread_id=thread_id,
                                 content=body,
-                                parent_post_id=parent_id
+                                parent_post_id=parent_post_id
                             )
+                            post_id = result["postId"]
                             logger.info(f"Created reply by {account_name}")
 
-                            # Store reference
-                            post_refs[reply_to] = result["postId"]
+                            # Determine this post's reference ID
+                            if reply_to == "0":
+                                existing_top = [k for k in post_refs.keys() if k.isdigit() and k != "0"]
+                                next_id = str(len(existing_top) + 1)
+                            else:
+                                prefix = reply_to + "."
+                                existing_nested = [k for k in post_refs.keys() if k.startswith(prefix)]
+                                next_num = len(existing_nested) + 1
+                                next_id = f"{reply_to}.{next_num}"
+
+                            post_refs[next_id] = {"thread_id": thread_id, "post_id": post_id}
 
                             log_post({
                                 "timestamp": datetime.now().isoformat(),
                                 "type": "comment",
                                 "account": account_name,
                                 "thread_id": thread_id,
-                                "post_id": result["postId"],
-                                "parent_id": parent_id
+                                "post_id": post_id,
+                                "parent_id": parent_post_id,
+                                "ref": next_id
                             })
 
                         executed_posts.add(post_key)
